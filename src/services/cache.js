@@ -29,16 +29,17 @@ const write = function ( key, val, staleDays, expiryDays ) {
 };
 /** read
  * @param {String} key
- * @returns {Array|Object|String|Null} Cached array or object, or empty string if not yet cached,
- *          or null if there was error.
+ * @returns {Array|Object|String|Null} Cached array or object, or null if not yet cached or if there was an error.
  */
 const read = function ( key ) {
 	let val;
 	try {
-		const stringVal = localStorage.getItem( 'Rater-' + key );
-		if ( stringVal !== '' ) {
-			val = JSON.parse( stringVal );
+		const storageKey = 'Rater-' + key;
+		const stringVal = localStorage.getItem( storageKey );
+		if ( stringVal === null || stringVal === '' ) {
+			return null;
 		}
+		val = JSON.parse( stringVal );
 	} catch ( e ) {
 		log.warn( 'error reading %s from localStorage cache:', key );
 		log.warn( '\t%s message: %s%s%s', e.name, e.message, ( e.at ? ' at: ' + e.at : '' ), ( e.text ? ' text: ' + e.text : '' ) );

@@ -9,7 +9,7 @@ const log = logger.get( 'templateData' );
 // Fetch and cache TemplateData for a template title (prefixed or not)
 const getTemplateData = function ( prefixedTitle ) {
 	const title = String( prefixedTitle || '' );
-	const key = title + '-params';
+	const key = title + '-templatedata';
 	const cached = cache.read( key );
 	if ( cached && cached.value && cached.staleDate && !config.forceBypassCache ) {
 		return $.Deferred().resolve( cached.value );
