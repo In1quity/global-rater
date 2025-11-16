@@ -24,8 +24,44 @@ API.getORES = function ( revisionID, wiki ) {
 };
 
 /* ---------- Raw wikitext ---------------------------------------------------------------------- */
+const getWindowProtocol = function () {
+	try {
+		if ( typeof window !== 'undefined' && window.location && window.location.protocol ) {
+			return window.location.protocol;
+		}
+	} catch ( _e ) {}
+	return 'https:';
+};
+
+const resolveProtocolRelative = function ( url ) {
+	const str = String( url || '' );
+	if ( str.startsWith( '//' ) ) {
+		return getWindowProtocol() + str;
+	}
+	return str;
+};
+
+const absolutizeUrl = function ( path ) {
+	const rawPath = String( path || '' );
+	if ( /^https?:\/\//i.test( rawPath ) ) {
+		return rawPath;
+	}
+	if ( rawPath.startsWith( '//' ) ) {
+		return resolveProtocolRelative( rawPath );
+	}
+	const normalizedPath = rawPath.startsWith( '/' ) ? rawPath : '/' + rawPath;
+	const server = resolveProtocolRelative( mw.config.get( 'wgServer' ) || ( ( typeof window !== 'undefined' && window.location && window.location.origin ) || '' ) );
+	if ( !server ) {
+		return normalizedPath;
+	}
+	const trimmedServer = server.replace( /\/+$/, '' );
+	return trimmedServer + normalizedPath;
+};
+
 API.getRaw = function ( page ) {
-	return fetch( 'https:' + mw.config.get( 'wgServer' ) + mw.util.getUrl( page, { action: 'raw' } ) )
+	const target = mw.util && typeof mw.util.getUrl === 'function' ? mw.util.getUrl( page, { action: 'raw' } ) : '';
+	const url = absolutizeUrl( target );
+	return fetch( url )
 		.then( ( response ) => response.text() )
 		.then( ( data ) => {
 			if ( !data ) {
