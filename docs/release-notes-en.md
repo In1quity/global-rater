@@ -10,6 +10,7 @@ This release incorporates accumulated updates from [upstream Rater](https://gith
 - Updated the defaults for Russian Wikipedia: no automatic banner shell creation and assessments in individual project banners. Roman numerals are shown in menus while Arabic numerals are written to wikitext. English Wikipedia automatically creates the shell and uses native class names and shared assessments.
 - Localized Russian Wikipedia's edit summaries independently of the user's interface language and bundled the updated Russian translations.
 - Widened the project action menu and allowed long button labels to wrap within the viewport.
+- Grouped preferences into startup, assessment autofill, projects and display, and saving/cache sections with clearer spacing and labels.
 - Fixed dialog hangs when closing without saving and when preview, comparison, or save operations fail.
 - Fixed nested banner shell handling, including stray closing braces, lost importance ratings, and incorrect assessment migration. Unsupported shared assessments now require an explicit supported choice before saving, preventing silent data loss.
 - Fixed the display of comparison rows and error messages, drag-handler cleanup when reopening the dialog, and search focus after selecting an existing project.
@@ -25,7 +26,7 @@ All 80 regression tests passed on each of OOUI 0.53.0, 0.53.2, and 0.54.2, inclu
 
 ## Publication notes for the maintainer
 
-These notes cover both [PR #2](https://github.com/In1quity/global-rater/pull/2) and [PR #3](https://github.com/In1quity/global-rater/pull/3). Merge PR #2 first, then PR #3. The package metadata and lockfile use version **3.3.3**; rebuild from the merged sources before publication.
+These notes cover the merged [PR #2](https://github.com/In1quity/global-rater/pull/2) and [PR #3](https://github.com/In1quity/global-rater/pull/3), plus the follow-up fixes in [PR #4](https://github.com/In1quity/global-rater/pull/4). Include PR #4 before publication. The package metadata and lockfile use version **3.3.3**; rebuild from the merged sources before publication.
 
 Run `npm ci`, `npm run lint`, `npm run test:ooui`, and `npm run build`. The inherited `npm run test:run` suite still has its known failures: 23 failing files, mostly obsolete Template.js imports, plus an incomplete widget mock. Those failures are separate from the passing regression suite.
 
