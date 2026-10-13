@@ -11,10 +11,10 @@
 		"importance",
 		"mediawiki"
 	],
-	"homepage": "https://github.com/evad37/rater",
-	"documentation": "https://en.wikipedia.org/wiki/User:Evad37/Rater",
+	"homepage": "https://github.com/In1quity/global-rater",
+	"documentation": "https://www.mediawiki.org/wiki/User:Iniquity/rater.js",
 	"bugs": {
-		"url": "https://github.com/evad37/rater/issues"
+		"url": "https://github.com/In1quity/global-rater/issues"
 	},
 	"type": "module",
 	"browser": "index.js",
@@ -41,7 +41,7 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/evad37/rater.git",
+		"url": "https://github.com/In1quity/global-rater.git",
 		"directory": "."
 	},
 	"license": "(MIT OR CC-BY-4.0)",

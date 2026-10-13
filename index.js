@@ -42,7 +42,7 @@ $.when(
 			];
 			mw.loader.using( reqModules ).then( () => {
 				// Get the title using template substitution (so the same source file be used on both main and sandbox scripts)
-				const title = /* </nowiki> */ 'User:Iniquity/rater-core-test.js'; /* <nowiki> */
+				const title = /* </nowiki> */ 'User:Iniquity/rater-core.js'; /* <nowiki> */
 				mw.loader.load( 'https://www.mediawiki.org/w/index.php?title=' + title + '&action=raw&ctype=text/javascript' );
 			} );
 		} );

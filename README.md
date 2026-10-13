@@ -1,12 +1,37 @@
 # Rater
 
 <a href="https://nodejs.org/en/about/previous-releases"><img src="https://img.shields.io/badge/node-LTS-brightgreen" alt="node LTS support"></a>
-<a href="https://github.com/In1quity/rater/actions/workflows/ci.yml"><img src="https://github.com/In1quity/rater/actions/workflows/ci.yml/badge.svg?branch=master" alt="build status"></a>
+<a href="https://github.com/In1quity/global-rater/actions/workflows/ci.yml"><img src="https://github.com/In1quity/global-rater/actions/workflows/ci.yml/badge.svg?branch=master" alt="build status"></a>
 
-This is the source code for version 3 of the Wikipedia userscript [Rater](https://en.wikipedia.org/wiki/User:Evad37/rater).
+This is the source code for Global Rater, a version 3 fork of the Wikipedia userscript [Rater](https://en.wikipedia.org/wiki/User:Evad37/rater).
 
 ## Installation instructions and user guide
-See [https://en.wikipedia.org/wiki/User:Evad37/rater](https://en.wikipedia.org/wiki/User:Evad37/rater).
+The global loader is published at [User:Iniquity/rater.js on MediaWiki.org](https://www.mediawiki.org/wiki/User:Iniquity/rater.js), and loads [User:Iniquity/rater-core.js](https://www.mediawiki.org/wiki/User:Iniquity/rater-core.js) from that same wiki. Import the loader in your local wiki's common.js:
+
+```javascript
+mw.loader.load( 'https://www.mediawiki.org/w/index.php?title=User:Iniquity/rater.js&action=raw&ctype=text/javascript' );
+```
+
+The upstream [user guide](https://en.wikipedia.org/wiki/User:Evad37/rater) describes the assessment interface; template names and assessment rules can vary by wiki.
+
+## Where Rater looks for data
+
+WikiProject banners are discovered from the categories in `config.categories`, notably `withRatings`. On English Wikipedia this is [Category:WikiProject banners with quality assessment](https://en.wikipedia.org/wiki/Category:WikiProject_banners_with_quality_assessment). Task forces and other parameters come from each banner's [TemplateData](https://en.wikipedia.org/wiki/User:Evad37/rater#TemplateData_quick_tutorial).
+
+For another wiki, define its categories, banner prefixes, shell template and parameter values with `window.RATER_CONFIG`, or supply JSON through `window.RATER_CONFIG_URL`, before loading the script.
+
+## Testing a patch and publishing
+
+1. Run `npm ci`, `npm run test:run`, and `npm run build:dev`.
+2. Copy `dist/rater-core.js` to a sandbox JavaScript page you control on MediaWiki.org (for example, `User:YOUR_USERNAME/rater-core-test.js`).
+3. Copy `dist/rater.js` to your sandbox loader page. Change its `title` constant to the sandbox core page, retaining the MediaWiki.org host.
+4. Import that sandbox loader from your local wiki's common.js and check loading, preview, diff, save, and closing the dialog. Use a test talk page or a sandbox.
+
+Testwiki's upstream examples include WikiProject Africa, Belgium, and China. Additional templates must be imported, included in the configured banner categories, and supplied with working dependencies and TemplateData.
+
+For publication, run `npm run build:prod`, copy `dist/rater-core.js` to `User:Iniquity/rater-core.js` on MediaWiki.org, then copy `dist/rater.js` to `User:Iniquity/rater.js`. Publishing requires edit access to those pages. The global build uses `rater-core.js`; the upstream `rater.min.js` deployment instructions refer to its older build system.
+
+The inherited [application diagram](architecture_main.svg) and [OOUI diagram](architecture_ooui.svg) describe upstream Rater v2. The current fork's modules are listed below; its loading dialog uses Vue/Codex.
 
 ## 🏗️ Project Structure
 
