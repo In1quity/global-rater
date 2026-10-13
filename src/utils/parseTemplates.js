@@ -22,6 +22,9 @@ const parseTemplates = function ( wikitext, recursive ) {
 		let text = wikitext.slice( sIdx, eIdx );
 
 		const template = new Template( '{{' + text.replace( /\x01/g, '|' ) + '}}' );
+		// Offsets in the input string let edits replace complete templates safely.
+		template.start = sIdx - 2;
+		template.end = eIdx + 2;
 
 		// swap out pipe in links with \x01 control character
 		// [[File: ]] can have multiple pipes, so might need multiple passes

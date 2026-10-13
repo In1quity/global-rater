@@ -3,6 +3,8 @@ import BannerWidget from './BannerWidget.js';
 import { normaliseYesNo, filterAndMap, uniqueArray } from '@utils/util.js';
 import ParameterWidget from './ParameterWidget.js';
 import logger from '@services/logger.js';
+import i18n from '@services/i18n.js';
+import { usesShellClass, canRateBanner, shouldCreateShell } from '@services/shellPolicy.js';
 // <nowiki>
 
 const log = logger.get( 'BannerList' );
@@ -60,6 +62,7 @@ BannerListWidget.prototype.setChanged = function () {
 
 BannerListWidget.prototype.onBannerRemove = function ( banner ) {
 	this.removeItems( [ banner ] );
+	this.updateClassPlacement();
 	this.setChanged();
 };
 
@@ -120,19 +123,31 @@ BannerListWidget.prototype.syncShellTemplateWithBiographyBanner = function ( bio
 };
 
 BannerListWidget.prototype.addShellTemplateIfNeeeded = function () {
+	if ( !shouldCreateShell( this.items.filter( ( banner ) => !banner.isShellTemplate ).length ) || this.shellCreationPromise ) {
+		return this;
+	}
 	if (
 		!this.items.some( ( banner ) => banner.isShellTemplate )
 	) {
-		BannerWidget.newFromTemplateName(
+		this.shellCreationPromise = BannerWidget.newFromTemplateName(
 			config.shellTemplate,
 			{ withoutRatings: true },
 			{ preferences: this.preferences, isArticle: this.pageInfo.isArticle }
 		).then( ( shellBannerWidget ) => {
+			this.shellCreationPromise = null;
+			if ( !shouldCreateShell( this.items.filter( ( banner ) => !banner.isShellTemplate ).length ) || this.items.some( ( banner ) => banner.isShellTemplate ) ) {
+				return;
+			}
 			OO.ui.mixin.GroupElement.prototype.addItems.call( this, [ shellBannerWidget ], 0 );
+			this.updateClassPlacement();
 			// Autofill ratings (if able to)
-			this.autofillClassRatings( { forBannerShell: true } );
+			this.autofillClassRatings();
+			this.syncShellTemplateWithBiographyBanner();
 			// emit updatedSize event
 			this.onUpdatedSize();
+		} ).catch( () => {
+			this.shellCreationPromise = null;
+			mw.notify( i18n.t( 'error-shell-required' ), { type: 'error' } );
 		} );
 	}
 
@@ -147,12 +162,12 @@ BannerListWidget.prototype.addItems = function ( items, index ) {
 
 	// Call mixin method to do the adding
 	OO.ui.mixin.GroupElement.prototype.addItems.call( this, items, index );
+	this.updateClassPlacement();
 
 	// Autofill ratings (if able to, and if enabled in preferences)
-	if ( !this.items.some( ( banner ) => banner.isShellTemplate ) ) {
-		this.autofillClassRatings();
-	}
+	this.autofillClassRatings();
 	this.autofillImportanceRatings();
+	this.addShellTemplateIfNeeeded();
 
 	// emit updatedSize event
 	this.onUpdatedSize();
@@ -160,10 +175,11 @@ BannerListWidget.prototype.addItems = function ( items, index ) {
 	return this;
 };
 
-BannerListWidget.prototype.autofillClassRatings = function ( options ) {
-	const autofillConfig = options || {};
+BannerListWidget.prototype.autofillClassRatings = function () {
+	const shell = this.items.find( ( banner ) => banner.isShellTemplate );
+	const forShell = usesShellClass() && !!shell;
 	// Only autofill if set in preferences
-	if ( !this.preferences.autofillClassFromOthers && !this.preferences.autofillClassFromOres && !autofillConfig.forBannerShell ) {
+	if ( !this.preferences.autofillClassFromOthers && !this.preferences.autofillClassFromOres && !forShell ) {
 		return;
 	}
 	// Check what banners already have (safely handle null selected item)
@@ -187,7 +203,7 @@ BannerListWidget.prototype.autofillClassRatings = function ( options ) {
 	}
 	// Determine what to autofill with
 	let autoClass;
-	if ( uniqueClassRatings.length === 1 && ( this.preferences.autofillClassFromOthers || autofillConfig.forBannerShell ) ) {
+	if ( uniqueClassRatings.length === 1 && ( this.preferences.autofillClassFromOthers || forShell ) ) {
 		autoClass = uniqueClassRatings[ 0 ];
 	} else if ( uniqueClassRatings.length === 0 && this.preferences.autofillClassFromOres && this.oresClass ) {
 		// Don't autofill above C-class
@@ -201,15 +217,14 @@ BannerListWidget.prototype.autofillClassRatings = function ( options ) {
 	}
 	// Do the autofilling
 	this.items.forEach( ( banner ) => {
+		if ( banner.isShellTemplate !== forShell ) {
+			return;
+		}
 		if ( !banner.hasClassRatings && !banner.isShellTemplate ) {
 			return;
 		}
 		const classItem = banner.classDropdown.getMenu().findSelectedItem();
-		if ( classItem && classItem.getData() && !autofillConfig.forBannerShell ) {
-			return;
-		}
-		if ( autofillConfig.forBannerShell && !banner.isShellTemplate && classItem && classItem.getData() === autoClass ) {
-			banner.classDropdown.getMenu().selectItemByData( null );
+		if ( classItem && classItem.getData() ) {
 			return;
 		}
 		banner.classDropdown.getMenu().selectItemByData( autoClass );
@@ -229,7 +244,7 @@ BannerListWidget.prototype.autofillImportanceRatings = function () {
 	// Maybe do something with  ORES's "drafttopic" model.
 	const autoImportance = 'Low';
 	this.items.forEach( ( banner ) => {
-		if ( !banner.hasImportanceRatings ) {
+		if ( !banner.hasImportanceRatings || banner.originalImportanceValue ) {
 			return;
 		}
 		const importanceItem = banner.importanceDropdown.getMenu().findSelectedItem();
@@ -249,6 +264,8 @@ BannerListWidget.prototype.setPreferences = function ( prefs ) {
 };
 
 BannerListWidget.prototype.makeWikitext = function () {
+	this.updateClassPlacement();
+	this.validateClassPlacement();
 	try {
 		log.info( '[makeWikitext] items=%d', this.items.length );
 	} catch ( _e ) {}
@@ -278,16 +295,39 @@ BannerListWidget.prototype.makeWikitext = function () {
 		const tmpCount = shellTemplate.parameterList.getParameterItems().length;
 		log.debug( '[makeWikitext] temp param added, count=%d', tmpCount );
 	} catch ( _e ) {}
-	const shellWikitext = shellTemplate.makeWikitext();
 	try {
-		log.debug( '[makeWikitext] after render, count=%d', shellTemplate.parameterList.getParameterItems().length );
-	} catch ( _e ) {}
-	shellTemplate.parameterList.removeItems( [ shellParam1 ] );
-	try {
-		log.info( '[makeWikitext] shellLen=%d', shellWikitext.length );
-		log.debug( '[makeWikitext] shell sample: %s', shellWikitext.slice( 0, 200 ) );
-	} catch ( _e ) {}
-	return shellWikitext;
+		return shellTemplate.makeWikitext();
+	} finally {
+		shellTemplate.parameterList.removeItems( [ shellParam1 ] );
+	}
+};
+
+BannerListWidget.prototype.validateClassPlacement = function () {
+	if ( !usesShellClass() || !this.items.some( ( banner ) => !banner.isShellTemplate ) ) {
+		return;
+	}
+	const shell = this.items.find( ( banner ) => banner.isShellTemplate );
+	if ( !shell ) {
+		return;
+	}
+	const ratings = uniqueArray( this.items.filter( ( banner ) => banner.hasClassRatings || banner.isShellTemplate )
+		.map( ( banner ) => banner.classDropdown.getValue() ).filter( Boolean ) );
+	if ( ratings.length > 1 && !( shell.classChanged && !shell.classDropdown.autofilled ) ) {
+		throw new Error( i18n.t( 'error-conflicting-classes' ) );
+	}
+	if ( ratings.length === 1 && !shell.classDropdown.getValue() && !shell.classChanged ) {
+		shell.classDropdown.getMenu().selectItemByData( ratings[ 0 ] );
+	}
+};
+
+BannerListWidget.prototype.updateClassPlacement = function () {
+	const hasShell = this.items.some( ( banner ) => banner.isShellTemplate );
+	this.items.forEach( ( banner ) => {
+		banner.inShell = hasShell;
+		if ( banner.classDropdown ) {
+			banner.classDropdown.toggle( canRateBanner( banner ) );
+		}
+	} );
 };
 
 export default BannerListWidget;

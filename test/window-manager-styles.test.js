@@ -22,7 +22,9 @@ describe('Rater window isolation', () => {
 	afterEach(() => vi.unstubAllGlobals());
 
 	it('keeps external confirmation dialogs fixed while allowing Rater to move', () => {
-		expect(window.getComputedStyle(document.getElementById('rater')).position).toBe('static');
+		expect(window.getComputedStyle(document.getElementById('rater')).position).toBe('fixed');
+		expect(window.getComputedStyle(document.getElementById('rater')).pointerEvents).toBe('none');
+		expect(window.getComputedStyle(document.getElementById('rater-content')).pointerEvents).toBe('auto');
 		expect(window.getComputedStyle(document.getElementById('confirm')).position).toBe('fixed');
 		expect(window.getComputedStyle(document.getElementById('mw-teleport-target')).top).toBe('20px');
 	});

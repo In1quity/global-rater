@@ -24,6 +24,9 @@ jobs:
     
     - name: Run linter
       run: npm run lint
+
+    - name: Run regression tests
+      run: npm run test:regression
     
     - name: Build project
       run: npm run build

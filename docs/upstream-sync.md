@@ -14,3 +14,5 @@ Merged `wikimedia-gadgets/rater` through `82ffa1fcbacaf020561fc040887534a54b88c6
 | `113ea31`, upstream merge | Preserve upstream history through this merge. |
 
 The loader and build metadata point to `In1quity/global-rater` and `User:Iniquity/rater.js`; production loads `User:Iniquity/rater-core.js` on MediaWiki.org.
+
+The port additionally keeps the Rater dialog fixed to the viewport with pointer events restricted to its frame. This preserves background interaction without making a long preview move the dialog into the document flow. Close/save action handlers do not return the window lifecycle promise, and asynchronous action processes catch synchronous rendering errors so the pending state can clear.

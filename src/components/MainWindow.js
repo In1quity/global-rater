@@ -15,8 +15,15 @@ import { containsTemplate } from '@utils/wikitext.js';
 import * as cache from '@services/cache.js';
 import i18n from '@services/i18n.js';
 import logger from '@services/logger.js';
+import { canRateBanner, usesShellClass, formatClassRating } from '@services/shellPolicy.js';
 const log = logger.get( 'MainWindow' );
 // <nowiki>
+
+// Defer work until execute(), so synchronous errors also release the pending state.
+const createActionProcess = function ( run ) {
+	return new OO.ui.Process( () => $.Deferred().resolve().then( run ).catch( ( error ) => $.Deferred().reject( [ error instanceof OO.ui.Error ? error : new OO.ui.Error( error.message || String( error ) ) ] ).promise()
+	) );
+};
 
 function MainWindow( windowConfig ) {
 	MainWindow.super.call( this, windowConfig );
@@ -151,7 +158,7 @@ MainWindow.prototype.initialize = function () {
 	oresLabelContent.appendChild( oresPrediction );
 	this.oresLabel = new OO.ui.LabelWidget( {
 		$element: $( oresLabelEl ),
-		label: oresLabelContent
+		label: $( oresLabelContent )
 	} ).toggle( false );
 	const pagetypeLabelEl = document.createElement( 'span' );
 	pagetypeLabelEl.className = 'rater-mainWindow-pagetypeLabel';
@@ -329,7 +336,9 @@ MainWindow.prototype.getBodyHeight = function () {
 	const currentlayout = this.contentArea.getCurrentItem();
 	const layoutHeight = currentlayout && currentlayout.$element.outerHeight( true );
 	const contentHeight = currentlayout && currentlayout.$element.children( ':first-child' ).outerHeight( true );
-	return Math.max( 200, layoutHeight, contentHeight );
+	const desired = Math.max( 200, layoutHeight || 0, contentHeight || 0 );
+	const available = Math.max( 200, window.innerHeight - this.$head.outerHeight() - this.$foot.outerHeight() - 48 );
+	return Math.min( desired, available );
 };
 
 // Use getSetupProcess() to set up the window with data passed to it at the time
@@ -473,6 +482,13 @@ MainWindow.prototype.getReadyProcess = function ( data ) {
 
 // Use the getActionProcess() method to do things when actions are clicked
 MainWindow.prototype.getActionProcess = function ( action ) {
+	if ( [ 'save', 'preview', 'changes' ].includes( action ) ) {
+		try {
+			this.bannerList.validateClassPlacement();
+		} catch ( error ) {
+			return new OO.ui.Process( () => new OO.ui.Error( error.message ) );
+		}
+	}
 	if ( action === 'showPrefs' ) {
 		this.actions.setMode( 'prefs' );
 		this.contentArea.setItem( this.prefsLayout );
@@ -481,30 +497,29 @@ MainWindow.prototype.getActionProcess = function ( action ) {
 
 	} else if ( action === 'savePrefs' ) {
 		const updatedPrefs = this.prefsForm.getPrefs();
-		return new OO.ui.Process().next(
-			ApiSetPrefs( updatedPrefs ).then(
-				// Success
-				() => {
-					this.setPreferences( updatedPrefs );
-					this.actions.setMode( 'edit' );
-					this.contentArea.setItem( this.editLayout );
-					this.topBar.setDisabled( false );
-					this.updateSize();
-				},
-				// Failure
-				( code, err ) => {
-					const errorDiv = document.createElement( 'div' );
-					const strong = document.createElement( 'strong' );
-					strong.className = 'rater-mainWindow-errorStrong';
-					strong.textContent = i18n.t( 'error-save-prefs' );
-					const span = document.createElement( 'span' );
-					span.className = 'rater-mainWindow-errorMessage';
-					span.textContent = makeErrorMsg( code, err );
-					errorDiv.appendChild( strong );
-					errorDiv.appendChild( span );
-					throw new OO.ui.Error( errorDiv );
-				}
-			)
+		return createActionProcess( () => ApiSetPrefs( updatedPrefs ).then(
+			// Success
+			() => {
+				this.setPreferences( updatedPrefs );
+				this.actions.setMode( 'edit' );
+				this.contentArea.setItem( this.editLayout );
+				this.topBar.setDisabled( false );
+				this.updateSize();
+			},
+			// Failure
+			( code, err ) => {
+				const errorDiv = document.createElement( 'div' );
+				const strong = document.createElement( 'strong' );
+				strong.className = 'rater-mainWindow-errorStrong';
+				strong.textContent = i18n.t( 'error-save-prefs' );
+				const span = document.createElement( 'span' );
+				span.className = 'rater-mainWindow-errorMessage';
+				span.textContent = makeErrorMsg( code, err );
+				errorDiv.appendChild( strong );
+				errorDiv.appendChild( span );
+				throw new OO.ui.Error( errorDiv );
+			}
+		)
 		);
 
 	} else if ( action === 'clearCache' ) {
@@ -521,21 +536,59 @@ MainWindow.prototype.getActionProcess = function ( action ) {
 		this.updateSize();
 
 	} else if ( action === 'save' ) {
-		return new OO.ui.Process().next(
-			API.editWithRetry(
-				this.talkpage.getPrefixedText(),
-				{ rvsection: 0 },
-				( revision ) => ( {
-					section: 0,
-					text: this.transformTalkWikitext( revision.content ),
-					summary: this.makeEditSummary(),
-					watchlist: this.preferences.watchlist
-				} )
-			).catch( ( code, err ) => {
+		return createActionProcess( () => API.editWithRetry(
+			this.talkpage.getPrefixedText(),
+			{ rvsection: 0 },
+			( revision ) => ( {
+				section: 0,
+				text: this.transformTalkWikitext( revision.content ),
+				summary: this.makeEditSummary(),
+				watchlist: this.preferences.watchlist
+			} )
+		).catch( ( code, err ) => {
+			const errorDiv = document.createElement( 'div' );
+			const strong = document.createElement( 'strong' );
+			strong.className = 'rater-mainWindow-errorStrong';
+			strong.textContent = i18n.t( 'error-could-not-save' );
+			const span = document.createElement( 'span' );
+			span.className = 'rater-mainWindow-errorMessage';
+			span.textContent = makeErrorMsg( code, err );
+			errorDiv.appendChild( strong );
+			errorDiv.appendChild( span );
+			throw new OO.ui.Error( errorDiv );
+		} )
+		).next( () => {
+			this.close( {
+				success: true,
+				upgradedStub: this.pageInfo.hasStubtag && this.isRatedAndNotStub()
+			} );
+		} );
+
+	} else if ( action === 'preview' ) {
+		return createActionProcess( () => parsePreview( {
+			talkWikitext: this.transformTalkWikitext( this.talkWikitext ),
+			summary: this.makeEditSummary(),
+			title: this.talkpage.getPrefixedText(),
+			label: i18n.t( 'label-edit-summary' )
+		} ).then( ( result ) => {
+			if ( !result || !result.parse || !result.parse.text || !result.parse.text[ '*' ] ) {
+				throw new Error( 'Empty result' );
+			}
+			const previewHtmlSnippet = new OO.ui.HtmlSnippet( result.parse.text[ '*' ] );
+
+			this.parsedContentWidget.setLabel( previewHtmlSnippet );
+			this.parsedContentContainer.setLabel( i18n.t( 'label-preview' ) + ':' );
+			this.actions.setMode( 'preview' );
+			this.contentArea.setItem( this.parsedContentLayout );
+			this.$body.scrollTop( 0 );
+			this.topBar.setDisabled( true );
+			this.updateSize();
+		} )
+			.catch( ( code, err ) => {
 				const errorDiv = document.createElement( 'div' );
 				const strong = document.createElement( 'strong' );
 				strong.className = 'rater-mainWindow-errorStrong';
-				strong.textContent = i18n.t( 'error-could-not-save' );
+				strong.textContent = i18n.t( 'error-could-not-show-changes' );
 				const span = document.createElement( 'span' );
 				span.className = 'rater-mainWindow-errorMessage';
 				span.textContent = makeErrorMsg( code, err );
@@ -543,148 +596,112 @@ MainWindow.prototype.getActionProcess = function ( action ) {
 				errorDiv.appendChild( span );
 				throw new OO.ui.Error( errorDiv );
 			} )
-		).next( () => this.close( {
-			success: true,
-			upgradedStub: this.pageInfo.hasStubtag && this.isRatedAndNotStub()
-		} ) );
-
-	} else if ( action === 'preview' ) {
-		return new OO.ui.Process().next(
-			parsePreview( {
-				talkWikitext: this.transformTalkWikitext( this.talkWikitext ),
-				summary: this.makeEditSummary(),
-				title: this.talkpage.getPrefixedText(),
-				label: i18n.t( 'label-edit-summary' )
-			} ).then( ( result ) => {
-				if ( !result || !result.parse || !result.parse.text || !result.parse.text[ '*' ] ) {
-					throw new Error( 'Empty result' );
-				}
-				const previewHtmlSnippet = new OO.ui.HtmlSnippet( result.parse.text[ '*' ] );
-
-				this.parsedContentWidget.setLabel( previewHtmlSnippet );
-				this.parsedContentContainer.setLabel( i18n.t( 'label-preview' ) + ':' );
-				this.actions.setMode( 'preview' );
-				this.contentArea.setItem( this.parsedContentLayout );
-				this.topBar.setDisabled( true );
-				this.updateSize();
-			} )
-				.catch( ( code, err ) => {
-					const errorDiv = document.createElement( 'div' );
-					const strong = document.createElement( 'strong' );
-					strong.className = 'rater-mainWindow-errorStrong';
-					strong.textContent = i18n.t( 'error-could-not-show-changes' );
-					const span = document.createElement( 'span' );
-					span.className = 'rater-mainWindow-errorMessage';
-					span.textContent = makeErrorMsg( code, err );
-					errorDiv.appendChild( strong );
-					errorDiv.appendChild( span );
-					throw new OO.ui.Error( errorDiv );
-				} )
 		);
 
 	} else if ( action === 'changes' ) {
-		return new OO.ui.Process().next(
-			compareDiff( {
-				fromText: this.talkWikitext,
-				toText: this.transformTalkWikitext( this.talkWikitext ),
-				title: this.talkpage.getPrefixedText()
-			} )
-				.then( ( result ) => {
-					if ( !result || !result.compare || !result.compare[ '*' ] ) {
-						// Ensure the core MediaWiki message is available before showing it
-						const loadDiffEmptyMessage = () => {
+		return createActionProcess( () => compareDiff( {
+			fromText: this.talkWikitext,
+			toText: this.transformTalkWikitext( this.talkWikitext ),
+			title: this.talkpage.getPrefixedText()
+		} )
+			.then( ( result ) => {
+				if ( !result || !result.compare || !result.compare[ '*' ] ) {
+					// Ensure the core MediaWiki message is available before showing it
+					const loadDiffEmptyMessage = () => {
 						// If already loaded, resolve immediately
-							if ( typeof mw !== 'undefined' && mw.message && mw.message( 'diff-empty' ).exists() ) {
-								return Promise.resolve( mw.msg( 'diff-empty' ) );
-							}
-							// Prefer mw.Api().loadMessages if available
-							if ( typeof mw !== 'undefined' && mw.Api && typeof ( new mw.Api() ).loadMessages === 'function' ) {
-								return ( new mw.Api() ).loadMessages( [ 'diff-empty' ] ).then( () => mw.msg( 'diff-empty' ) );
-							}
-							// Fallback: fetch via allmessages
-							if ( typeof mw !== 'undefined' && mw.Api ) {
-								const api = new mw.Api();
-								return api.get( {
-									action: 'query',
-									meta: 'allmessages',
-									ammessages: 'diff-empty',
-									amlang: mw.config && mw.config.get ? mw.config.get( 'wgUserLanguage' ) : 'en'
-								} ).then( ( data ) => {
-									const m = data && data.query && data.query.allmessages && data.query.allmessages[ 0 ] && data.query.allmessages[ 0 ][ '*' ];
-									return m || 'No difference';
-								} );
-							}
-							// Last resort
-							return Promise.resolve( 'No difference' );
-						};
+						if ( typeof mw !== 'undefined' && mw.message && mw.message( 'diff-empty' ).exists() ) {
+							return Promise.resolve( mw.msg( 'diff-empty' ) );
+						}
+						// Prefer mw.Api().loadMessages if available
+						if ( typeof mw !== 'undefined' && mw.Api && typeof ( new mw.Api() ).loadMessages === 'function' ) {
+							return ( new mw.Api() ).loadMessages( [ 'diff-empty' ] ).then( () => mw.msg( 'diff-empty' ) );
+						}
+						// Fallback: fetch via allmessages
+						if ( typeof mw !== 'undefined' && mw.Api ) {
+							const api = new mw.Api();
+							return api.get( {
+								action: 'query',
+								meta: 'allmessages',
+								ammessages: 'diff-empty',
+								amlang: mw.config && mw.config.get ? mw.config.get( 'wgUserLanguage' ) : 'en'
+							} ).then( ( data ) => {
+								const m = data && data.query && data.query.allmessages && data.query.allmessages[ 0 ] && data.query.allmessages[ 0 ][ '*' ];
+								return m || 'No difference';
+							} );
+						}
+						// Last resort
+						return Promise.resolve( 'No difference' );
+					};
 
-						return loadDiffEmptyMessage().then( ( msg ) => {
-							const emptyDiv = document.createElement( 'div' );
-							emptyDiv.className = 'diff-empty';
-							emptyDiv.textContent = msg;
-							this.parsedContentWidget.setLabel( new OO.ui.HtmlSnippet( emptyDiv.outerHTML ) );
-							this.parsedContentContainer.setLabel( i18n.t( 'label-changes' ) );
-							this.actions.setMode( 'diff' );
-							this.contentArea.setItem( this.parsedContentLayout );
-							this.topBar.setDisabled( true );
-							this.updateSize();
-						} );
-					}
-					const diffTable = document.createElement( 'table' );
-					diffTable.className = 'diff';
-					diffTable.style.width = '100%';
+					return loadDiffEmptyMessage().then( ( msg ) => {
+						const emptyDiv = document.createElement( 'div' );
+						emptyDiv.className = 'diff-empty';
+						emptyDiv.textContent = msg;
+						this.parsedContentWidget.setLabel( new OO.ui.HtmlSnippet( emptyDiv.outerHTML ) );
+						this.parsedContentContainer.setLabel( i18n.t( 'label-changes' ) );
+						this.actions.setMode( 'diff' );
+						this.contentArea.setItem( this.parsedContentLayout );
+						this.$body.scrollTop( 0 );
+						this.topBar.setDisabled( true );
+						this.updateSize();
+					} );
+				}
+				const diffTable = document.createElement( 'table' );
+				diffTable.className = 'diff';
+				diffTable.style.width = '100%';
 
-					const headerRow = document.createElement( 'tr' );
-					const th1 = document.createElement( 'th' );
-					th1.setAttribute( 'colspan', '2' );
-					th1.setAttribute( 'scope', 'col' );
-					th1.style.width = '50%';
-					th1.textContent = i18n.t( 'label-latest-revision' );
-					const th2 = document.createElement( 'th' );
-					th2.setAttribute( 'colspan', '2' );
-					th2.setAttribute( 'scope', 'col' );
-					th2.style.width = '50%';
-					th2.textContent = i18n.t( 'label-new-text' );
-					headerRow.appendChild( th1 );
-					headerRow.appendChild( th2 );
-					diffTable.appendChild( headerRow );
+				const headerRow = document.createElement( 'tr' );
+				const th1 = document.createElement( 'th' );
+				th1.setAttribute( 'colspan', '2' );
+				th1.setAttribute( 'scope', 'col' );
+				th1.style.width = '50%';
+				th1.textContent = i18n.t( 'label-latest-revision' );
+				const th2 = document.createElement( 'th' );
+				th2.setAttribute( 'colspan', '2' );
+				th2.setAttribute( 'scope', 'col' );
+				th2.style.width = '50%';
+				th2.textContent = i18n.t( 'label-new-text' );
+				headerRow.appendChild( th1 );
+				headerRow.appendChild( th2 );
+				diffTable.appendChild( headerRow );
 
-					// Add diff content
-					const tempDiv = document.createElement( 'div' );
-					tempDiv.innerHTML = result.compare[ '*' ];
-					Array.from( tempDiv.children ).forEach( ( child ) => diffTable.appendChild( child ) );
+				// Add diff content
+				const tempDiv = document.createElement( 'div' );
+				tempDiv.innerHTML = result.compare[ '*' ];
+				Array.from( tempDiv.children ).forEach( ( child ) => diffTable.appendChild( child ) );
 
-					const tfoot = document.createElement( 'tfoot' );
-					const footerRow = document.createElement( 'tr' );
-					const footerCell = document.createElement( 'td' );
-					footerCell.setAttribute( 'colspan', '4' );
-					const strong = document.createElement( 'strong' );
-					strong.textContent = i18n.t( 'label-edit-summary' ) + ' ';
-					footerCell.appendChild( strong );
-					footerCell.appendChild( document.createTextNode( this.makeEditSummary() ) );
-					footerRow.appendChild( footerCell );
-					tfoot.appendChild( footerRow );
-					diffTable.appendChild( tfoot );
+				const tfoot = document.createElement( 'tfoot' );
+				const footerRow = document.createElement( 'tr' );
+				const footerCell = document.createElement( 'td' );
+				footerCell.setAttribute( 'colspan', '4' );
+				const strong = document.createElement( 'strong' );
+				strong.textContent = i18n.t( 'label-edit-summary' ) + ' ';
+				footerCell.appendChild( strong );
+				footerCell.appendChild( document.createTextNode( this.makeEditSummary() ) );
+				footerRow.appendChild( footerCell );
+				tfoot.appendChild( footerRow );
+				diffTable.appendChild( tfoot );
 
-					this.parsedContentWidget.setLabel( new OO.ui.HtmlSnippet( diffTable.outerHTML ) );
-					this.parsedContentContainer.setLabel( i18n.t( 'label-changes' ) );
-					this.actions.setMode( 'diff' );
-					this.contentArea.setItem( this.parsedContentLayout );
-					this.topBar.setDisabled( true );
-					this.updateSize();
-				} )
-				.catch( ( code, err ) => {
-					const errorDiv = document.createElement( 'div' );
-					const strong = document.createElement( 'strong' );
-					strong.className = 'rater-mainWindow-errorStrong';
-					strong.textContent = i18n.t( 'error-could-not-show-changes' );
-					const span = document.createElement( 'span' );
-					span.className = 'rater-mainWindow-errorMessage';
-					span.textContent = makeErrorMsg( code, err );
-					errorDiv.appendChild( strong );
-					errorDiv.appendChild( span );
-					throw new OO.ui.Error( errorDiv );
-				} )
+				this.parsedContentWidget.setLabel( new OO.ui.HtmlSnippet( diffTable.outerHTML ) );
+				this.parsedContentContainer.setLabel( i18n.t( 'label-changes' ) );
+				this.actions.setMode( 'diff' );
+				this.contentArea.setItem( this.parsedContentLayout );
+				this.$body.scrollTop( 0 );
+				this.topBar.setDisabled( true );
+				this.updateSize();
+			} )
+			.catch( ( code, err ) => {
+				const errorDiv = document.createElement( 'div' );
+				const strong = document.createElement( 'strong' );
+				strong.className = 'rater-mainWindow-errorStrong';
+				strong.textContent = i18n.t( 'error-could-not-show-changes' );
+				const span = document.createElement( 'span' );
+				span.className = 'rater-mainWindow-errorMessage';
+				span.textContent = makeErrorMsg( code, err );
+				errorDiv.appendChild( strong );
+				errorDiv.appendChild( span );
+				throw new OO.ui.Error( errorDiv );
+			} )
 		);
 
 	} else if ( action === 'back' ) {
@@ -695,9 +712,12 @@ MainWindow.prototype.getActionProcess = function ( action ) {
 
 	} else if ( !action && this.bannerList.changed ) {
 		// Confirm closing of dialog if there have been changes
-		return new OO.ui.Process().next(
-			OO.ui.confirm( i18n.t( 'confirm-close' ), { title: i18n.t( 'confirm-close-title' ) } )
-				.then( ( confirmed ) => confirmed ? this.close() : null )
+		return createActionProcess( () => OO.ui.confirm( i18n.t( 'confirm-close' ), { title: i18n.t( 'confirm-close-title' ) } )
+			.then( ( confirmed ) => {
+				if ( confirmed ) {
+					this.close();
+				}
+			} )
 		);
 	}
 
@@ -787,19 +807,25 @@ MainWindow.prototype.onSearchSelect = function ( data ) {
 					this.updateSize();
 				} );
 		} )
-		.then( () => this.topBar.searchBox.setValue( '' ).focus().popPending() );
+		.then( () => this.topBar.searchBox.setValue( '' ).focus().popPending(), ( error ) => {
+			this.topBar.searchBox.popPending();
+			mw.notify( makeErrorMsg( error ), { type: 'error' } );
+		} );
 };
 
 MainWindow.prototype.onSetClasses = function ( classVal ) {
+	classVal = formatClassRating( classVal );
 	const shellTemplate = this.bannerList.items.find( ( banner ) => banner.isShellTemplate );
-	if ( shellTemplate ) {
+	if ( shellTemplate && usesShellClass() ) {
 		shellTemplate.classDropdown.getMenu().selectItemByData( classVal );
 		shellTemplate.classDropdown.setAutofilled( false );
+		shellTemplate.onClassChange();
 	}
 	this.bannerList.items.forEach( ( banner ) => {
 		if ( banner.hasClassRatings && !banner.isShellTemplate ) {
-			banner.classDropdown.getMenu().selectItemByData( shellTemplate ? null : classVal );
+			banner.classDropdown.getMenu().selectItemByData( shellTemplate && usesShellClass() ? null : classVal );
 			banner.classDropdown.setAutofilled( false );
+			banner.onClassChange();
 		}
 	} );
 };
@@ -833,7 +859,7 @@ MainWindow.prototype.transformTalkWikitext = function ( talkWikitext ) {
 };
 
 MainWindow.prototype.isRatedAndNotStub = function () {
-	const nonStubRatinggs = this.bannerList.items.filter( ( banner ) => banner.hasClassRatings &&
+	const nonStubRatinggs = this.bannerList.items.filter( ( banner ) => canRateBanner( banner ) && ( banner.hasClassRatings || banner.isShellTemplate ) &&
 		banner.classDropdown.getValue() &&
 		banner.classDropdown.getValue() !== 'Stub'
 	);

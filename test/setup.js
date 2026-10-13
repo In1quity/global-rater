@@ -305,6 +305,7 @@ global.OO.ui.DropdownWidget.prototype.getMenu = function() {
         getItems: () => []
     };
 };
+global.OO.ui.DropdownWidget.prototype.toggle = function() { return this; };
 
 // Implement GroupElement mixin used by ParameterListWidget
 global.OO.ui.mixin = global.OO.ui.mixin || {};

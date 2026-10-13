@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config';
+import { defineConfig, configDefaults } from 'vitest/config';
 import path from 'path';
 
 export default defineConfig({
@@ -6,6 +6,7 @@ export default defineConfig({
 		environment: 'jsdom',
 		globals: true,
 		setupFiles: ['./test/setup.js'],
+		exclude: [...configDefaults.exclude, 'test/regression/**'],
 		coverage: {
 			provider: 'v8',
 			reporter: ['text', 'json', 'html'],
