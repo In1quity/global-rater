@@ -275,6 +275,18 @@ if ( isRussianWiki ) {
 	config.bannerNamePrefixes = [ 'Статья проекта ' ];
 	config.bannerDefaults.classes = [ 'I', 'II', 'III', 'IV', 'ИС', 'ХС', 'ДС', 'ИСП', 'список' ];
 	config.bannerDefaults.importances = [ 'высшая', 'высокая', 'средняя', 'низкая' ];
+	config.defaultParameterData = {
+		уровень: {
+			label: { ru: 'Уровень оценки качества' },
+			aliases: [ 'class' ],
+			suggestedvalues: config.bannerDefaults.classes.slice()
+		},
+		важность: {
+			label: { ru: 'Важность для проекта' },
+			aliases: [ 'importance' ],
+			suggestedvalues: config.bannerDefaults.importances.slice()
+		}
+	};
 }
 
 /**

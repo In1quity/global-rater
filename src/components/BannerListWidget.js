@@ -64,6 +64,7 @@ BannerListWidget.prototype.onBannerRemove = function ( banner ) {
 	this.removeItems( [ banner ] );
 	this.updateClassPlacement();
 	this.setChanged();
+	this.onUpdatedSize();
 };
 
 BannerListWidget.prototype.syncShellTemplateWithBiographyBanner = function ( biographyBanner ) {

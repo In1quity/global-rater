@@ -6,12 +6,19 @@ import logger from '@services/logger.js';
 
 const log = logger.get( 'templateData' );
 
+const makeFallbackTemplateData = () => ( {
+	notemplatedata: true,
+	params: config.defaultParameterData,
+	paramOrder: Object.keys( config.defaultParameterData ),
+	paramAliases: {}
+} );
+
 // Fetch and cache TemplateData for a template title (prefixed or not)
 const getTemplateData = function ( prefixedTitle ) {
 	const title = String( prefixedTitle || '' );
 	const key = title + '-templatedata';
 	const cached = cache.read( key );
-	if ( cached && cached.value && cached.staleDate && !config.forceBypassCache ) {
+	if ( cached && cached.value && !cached.value.notemplatedata && cached.staleDate && !config.forceBypassCache ) {
 		return $.Deferred().resolve( cached.value );
 	}
 	return API.get( {
@@ -39,23 +46,23 @@ const getTemplateData = function ( prefixedTitle ) {
 		} catch ( _e ) { /* ignore */ }
 
 		if ( !page || page.notemplatedata || !page.params ) {
-			return $.Deferred().resolve( { notemplatedata: true, params: config.defaultParameterData, paramOrder: [], paramAliases: {} } );
+			return makeFallbackTemplateData();
 		}
 		const params = page.params || {};
 		const paramOrder = page.paramOrder || Object.keys( params );
 		const value = { notemplatedata: false, params, paramOrder };
 		cache.write( key, value, 1 );
 		return value;
-	} ).catch( () => ( { notemplatedata: true, params: config.defaultParameterData, paramOrder: [], paramAliases: {} } ) );
+	} ).catch( makeFallbackTemplateData );
 };
 
-// High-level helper that returns fully processed TD payload for Template.js
+// High-level helper that returns fully processed metadata for banner models
 // Includes: paramData, parameterSuggestions, paramAliases, classParamName, importanceParamName, notemplatedata
 const getTemplateDataDetails = function ( prefixedTitle ) {
 	const title = String( prefixedTitle || '' );
 	const key = title + '-params-v2';
 	const cached = cache.read( key );
-	if ( cached && cached.value && cached.staleDate && !config.forceBypassCache ) {
+	if ( cached && cached.value && !cached.value.notemplatedata && cached.staleDate && !config.forceBypassCache ) {
 		return $.Deferred().resolve( cached.value );
 	}
 	return getTemplateData( title ).then( ( base ) => {
@@ -123,7 +130,9 @@ const getTemplateDataDetails = function ( prefixedTitle ) {
 
 		// Build suggestions list using paramOrder if present
 		const order = ( base && base.paramOrder ) || Object.keys( result.paramData );
-		const filtered = order.filter( ( name ) => ( name && name !== 'class' && name !== 'importance' ) );
+		const filtered = order.filter( ( name ) => name &&
+			( result.paramAliases[ name ] || name ) !== result.classParamName &&
+			( result.paramAliases[ name ] || name ) !== result.importanceParamName );
 		result.parameterSuggestions = filtered.map( ( paramName ) => {
 			const optionObject = { data: paramName };
 			const pd = result.paramData[ paramName ];
@@ -134,7 +143,10 @@ const getTemplateDataDetails = function ( prefixedTitle ) {
 			return optionObject;
 		} );
 
-		cache.write( key, result, 1 );
+		// Fallback schemas depend on wiki configuration and must not outlive it in storage.
+		if ( !result.notemplatedata ) {
+			cache.write( key, result, 1 );
+		}
 		return result;
 	} );
 };

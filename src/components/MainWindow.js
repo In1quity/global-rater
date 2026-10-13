@@ -836,6 +836,8 @@ MainWindow.prototype.onWrapProjects = function () {
 
 MainWindow.prototype.onRemoveAll = function () {
 	this.bannerList.clearItems();
+	this.bannerList.setChanged();
+	this.onBannerListUpdateSize();
 };
 
 MainWindow.prototype.onClearAll = function () {

@@ -36,6 +36,7 @@ These site settings are merged into the built-in defaults before the interface o
 | `shell.aliases` | Additional names of the shell, excluded from project search. Redirect aliases are also fetched from the wiki. | `[]` | `[]` |
 | `shell.biographyBannerNames` / `shell.biographyParameters` | Optional biography banner names and supported `{ source, target, normalise }` parameter mappings. Mappings never inject a field absent from the shell schema. | Disabled | Biography mappings for `blp` and `listas` |
 | `editSummaryLanguage` | Language of the edit summary, independent of the user's interface language. | `"ru"` | `"en"` |
+| `defaultParameterData` | Banner metadata used when TemplateData is unavailable. Configure only fields supported on the wiki; `suggested` and `autovalue` can add fields automatically. Shells use their own schema. | `уровень`, `важность`; no automatic extra fields | English project parameter defaults |
 
 For example, the Russian policy can be explicitly configured before importing the global loader:
 
@@ -78,6 +79,8 @@ window.RATER_CONFIG = {
 ```
 
 Shell metadata comes from this configuration, including when TemplateData is missing or its cached fallback contains generic project fields. Required/suggested shell parameters are added only if defined in its schema. Existing unknown parameters are retained so changing assessments does not silently remove them.
+
+Ordinary banners without TemplateData use `defaultParameterData`. On Russian Wikipedia this supplies the local assessment fields without injecting `needs-image` or `needs-infobox`. Previously cached fallback metadata is ignored, so a corrected wiki configuration takes effect immediately; real TemplateData remains cached. Removing a shell makes the manual wrapping button available again while projects remain, and removing all projects disables it.
 
 ## Testing a patch and publishing
 

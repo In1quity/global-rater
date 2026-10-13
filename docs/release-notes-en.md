@@ -4,8 +4,9 @@ This release incorporates accumulated updates from [upstream Rater](https://gith
 
 ## Changes
 
-- Added a **Wrap projects** button and a user preference for automatic wrapping: never, always, from two projects, from three projects, or the wiki's default.
+- Added a **Wrap projects** button and a user preference for automatic wrapping: never, always, from two projects, from three projects, or the wiki's default. The button becomes available again after removing the shell and is disabled when no projects remain.
 - Added per-wiki shell parameter schemas and aliases. Banner shells are excluded from project search, their names no longer receive a project prefix, and generic project fields such as `needs-infobox` are not injected into Russian Wikipedia's shell.
+- Fixed Russian banner metadata when TemplateData is missing or unavailable: local assessment fields are recognized, English `needs-image` and `needs-infobox` defaults are not injected, and outdated cached fallback metadata is ignored.
 - Updated the defaults for Russian Wikipedia: no automatic banner shell creation and assessments in individual project banners. Roman numerals are shown in menus while Arabic numerals are written to wikitext. English Wikipedia automatically creates the shell and uses native class names and shared assessments.
 - Localized Russian Wikipedia's edit summaries independently of the user's interface language and bundled the updated Russian translations.
 - Widened the project action menu and allowed long button labels to wrap within the viewport.
@@ -18,7 +19,7 @@ This release incorporates accumulated updates from [upstream Rater](https://gith
 
 ## Validation
 
-All 74 regression tests passed on each of OOUI 0.53.0, 0.53.2, and 0.54.2, including per-wiki wrapping and parameter schemas, Roman display with Arabic serialization, localized summaries, the real window open/close lifecycle, and publication-safe parser markers. Lint checks and development/production builds passed. Current page HTML was also inspected on Russian and English Wikipedia, including Vector 2022, Timeless, and MonoBook samples. Final browser layout and logged-in saving should be checked on user sandbox pages before publication.
+All 80 regression tests passed on each of OOUI 0.53.0, 0.53.2, and 0.54.2, including repeated wrapping after shell removal, missing and cached fallback metadata, per-wiki wrapping and parameter schemas, Roman display with Arabic serialization, localized summaries, the real window open/close lifecycle, and publication-safe parser markers. Lint checks and development/production builds passed. Current page HTML was also inspected on Russian and English Wikipedia, including Vector 2022, Timeless, and MonoBook samples. Final browser layout and logged-in saving should be checked on user sandbox pages before publication.
 
 ---
 
