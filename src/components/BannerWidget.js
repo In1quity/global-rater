@@ -12,7 +12,7 @@ import { addMissingParams } from '@services/autofill.js';
 import { getWithRedirectTo } from '@services/templateRedirects.js';
 import HorizontalLayoutWidget from './HorizontalLayoutWidget.js';
 import globalConfig from '@constants/config.js';
-import { canRateBanner, isClassParameter, usesShellClass, formatClassRating } from '@services/shellPolicy.js';
+import { canRateBanner, isClassParameter, usesShellClass, formatClassRating, displayClassRating } from '@services/shellPolicy.js';
 import { serializeTemplate } from '@utils/serializeTemplate.js';
 // <nowiki>
 
@@ -102,7 +102,7 @@ function BannerWidget( template, config ) {
 		framed: false,
 		popup: {
 			$content: this.titleButtonsGroup.$element,
-			width: 200,
+			width: Math.min( 360, window.innerWidth - 48 ),
 			padded: false,
 			align: 'force-right',
 			anchor: false
@@ -122,7 +122,7 @@ function BannerWidget( template, config ) {
 					} ),
 					...Array.from( new Set( globalConfig.bannerDefaults.classes.map( formatClassRating ) ) ).map( ( classname ) => new OO.ui.MenuOptionWidget( {
 						data: classname,
-						label: classname
+						label: displayClassRating( classname )
 					} )
 					)
 				]
@@ -142,7 +142,7 @@ function BannerWidget( template, config ) {
 					} ),
 					...Array.from( new Set( template.classes.map( formatClassRating ) ) ).map( ( classname ) => new OO.ui.MenuOptionWidget( {
 						data: classname,
-						label: classname
+						label: displayClassRating( classname )
 					} )
 					)
 				]
@@ -152,7 +152,7 @@ function BannerWidget( template, config ) {
 		const classParam = template.parameters.find( ( parameter ) => isNameOrAliasOf( parameter.name, String( template.classParamName || 'class' ).toLowerCase(), template.paramAliases ) );
 		const preClass = formatClassRating( selectInitialValue( template.classes, classParam && classParam.value, classMask ) );
 		if ( preClass && !template.classes.map( formatClassRating ).includes( preClass ) ) {
-			this.classDropdown.getMenu().addItems( [ new OO.ui.MenuOptionWidget( { data: preClass, label: preClass } ) ] );
+			this.classDropdown.getMenu().addItems( [ new OO.ui.MenuOptionWidget( { data: preClass, label: displayClassRating( preClass ) } ) ] );
 		}
 		this.classDropdown.getMenu().selectItemByData( preClass );
 	}
@@ -346,7 +346,8 @@ BannerWidget.prototype.onUpdatedSize = function () {
 BannerWidget.prototype.setChanged = function () {
 	this.changed = true;
 	this.emit( 'changed' );
-	if ( this.mainText === 'WikiProject Biography' || this.redirectTargetMainText === 'WikiProject Biography' ) {
+	if ( ( globalConfig.shell.biographyBannerNames || [] ).includes( this.mainText ) ||
+		( globalConfig.shell.biographyBannerNames || [] ).includes( this.redirectTargetMainText ) ) {
 		// Emit event so BannerListWidget can update the banner shell template (if present)
 		this.emit( 'biographyBannerChange' );
 	}
@@ -384,15 +385,16 @@ BannerWidget.prototype.showAddParameterInputs = function () {
 };
 
 BannerWidget.prototype.getAddParametersInfo = function ( nameInputVal, valueInputVal ) {
-	const name = nameInputVal && nameInputVal.trim() || this.addParameterNameInput.getValue().trim();
+	const rawName = nameInputVal && nameInputVal.trim() || this.addParameterNameInput.getValue().trim();
+	const name = this.paramAliases[ rawName ] || rawName;
 	const paramAlreadyIncluded = isClassParameter( this, name ) ||
 		isNameOrAliasOf( name, String( this.importanceParamName ).toLowerCase(), this.paramAliases ) ||
 		( name === '1' && this.isShellTemplate ) ||
-		this.parameterList.getParameterItems().some( ( paramWidget ) => paramWidget.name === name );
+		this.parameterList.getParameterItems().some( ( paramWidget ) => paramWidget.name === name || this.paramAliases[ paramWidget.name ] === name );
 	const value = valueInputVal && valueInputVal.trim() || this.addParameterValueInput.getValue().trim();
 	const autovalue = name && this.paramData[ name ] && this.paramData[ name ].autovalue || null;
 	return {
-		validName: !!( name && !paramAlreadyIncluded ),
+		validName: !!( name && !paramAlreadyIncluded && ( !this.isShellTemplate || this.paramData[ name ] ) ),
 		validValue: !!( value || autovalue ),
 		isAutovalue: !!( !value && autovalue ),
 		isAlreadyIncluded: !!( name && paramAlreadyIncluded ),
@@ -407,9 +409,8 @@ BannerWidget.prototype.onAddParameterNameChange = function () {
 	// Set value input placeholder as the autovalue
 	this.addParameterValueInput.$input.attr( 'placeholder', autovalue || '' );
 	// Set suggestions, if the parameter has a list of allowed values
-	const allowedValues = this.paramData[ name ] &&
-		this.paramData[ name ].allowedValues &&
-		this.paramData[ name ].allowedValues.map( ( val ) => ( { data: val, label: val } ) );
+	const suggestedValues = this.paramData[ name ] && ( this.paramData[ name ].allowedValues || this.paramData[ name ].suggestedvalues );
+	const allowedValues = suggestedValues && suggestedValues.map( ( val ) => ( { data: val, label: val } ) );
 	this.addParameterValueInput.setSuggestions( allowedValues || [] );
 	// Set button disabled state based on validity
 	this.addParameterButton.setDisabled( !validName || !validValue );
@@ -465,6 +466,9 @@ BannerWidget.prototype.updateAddParameterNameSuggestions = function () {
 	this.parameterList.getParameterItems().forEach(
 		( paramWidget ) => {
 			paramsInUse[ paramWidget.name ] = true;
+			if ( this.paramAliases[ paramWidget.name ] ) {
+				paramsInUse[ this.paramAliases[ paramWidget.name ] ] = true;
+			}
 		}
 	);
 	const suggestions = Array.isArray( this.parameterSuggestions ) ? this.parameterSuggestions : [];

@@ -17,6 +17,7 @@ import * as cache from '@services/cache.js';
 import i18n from '@services/i18n.js';
 import logger from '@services/logger.js';
 import { canRateBanner, usesShellClass, formatClassRating } from '@services/shellPolicy.js';
+import { isShellTemplateName } from '@services/templateShell.js';
 const log = logger.get( 'MainWindow' );
 // <nowiki>
 
@@ -225,7 +226,8 @@ MainWindow.prototype.initialize = function () {
 		setClasses: 'onSetClasses',
 		setImportances: 'onSetImportances',
 		removeAll: 'onRemoveAll',
-		clearAll: 'onClearAll'
+		clearAll: 'onClearAll',
+		wrapProjects: 'onWrapProjects'
 	} );
 	this.bannerList.connect( this, { updatedSize: 'onBannerListUpdateSize' } );
 
@@ -253,6 +255,10 @@ MainWindow.prototype.initialize = function () {
 };
 
 MainWindow.prototype.onBannerListUpdateSize = function () {
+	if ( this.topBar && this.topBar.setShellAvailable ) {
+		this.topBar.setShellAvailable( this.bannerList.items.some( ( banner ) => !banner.isShellTemplate ) &&
+			!this.bannerList.items.some( ( banner ) => banner.isShellTemplate ) && !this.bannerList.shellCreationPromise );
+	}
 	// Get the current scroll amount
 	const scrollAmount = this.$body.scrollTop();
 	// Update size (which resets the scroll to 0)
@@ -481,6 +487,7 @@ MainWindow.prototype.getSetupProcess = function ( data ) {
 			this.talkpage = data.talkpage;
 			// Force a size update to ensure eveything fits okay
 			this.updateSize();
+			return this.bannerList.shellCreationPromise;
 		}, this );
 };
 
@@ -737,6 +744,10 @@ MainWindow.prototype.onSearchSelect = function ( data ) {
 		this.topBar.searchBox.popPending().focus();
 		return;
 	}
+	if ( isShellTemplateName( name ) ) {
+		this.topBar.searchBox.popPending().setValue( '' );
+		return this.onWrapProjects();
+	}
 	const existingBanner = this.bannerList.items.find( ( banner ) => banner.mainText === name || banner.redirectTargetMainText === name );
 
 	// Abort and show alert if banner already exists
@@ -758,7 +769,7 @@ MainWindow.prototype.onSearchSelect = function ( data ) {
 
 	// If user typed a short form without a recognized prefix, try to auto-prepend the first configured prefix
 	let confirmText;
-	const ensured = ensureBannerPrefix( name, config.bannerNamePrefixes || [] );
+	const ensured = data && data.name ? { name, hasValidPrefix: true } : ensureBannerPrefix( name, config.bannerNamePrefixes || [] );
 	name = ensured.name;
 	if ( !ensured.hasValidPrefix && !ensured.addedPrefix ) {
 		confirmText = new OO.ui.HtmlSnippet(
@@ -817,6 +828,12 @@ MainWindow.prototype.onSetImportances = function ( importanceVal ) {
 	} );
 };
 
+MainWindow.prototype.onWrapProjects = function () {
+	this.bannerList.addShellTemplateIfNeeeded( true );
+	this.onBannerListUpdateSize();
+	return Promise.resolve( this.bannerList.shellCreationPromise ).then( () => this.onBannerListUpdateSize() );
+};
+
 MainWindow.prototype.onRemoveAll = function () {
 	this.bannerList.clearItems();
 };
@@ -848,9 +865,19 @@ MainWindow.prototype.makeEditSummary = function () {
 	const removed = [];
 	const edited = [];
 	const added = [];
-	const shortName = ( name ) => name.replace( 'WikiProject ', '' ).replace( 'Subst:', '' );
+	const shortName = ( name ) => {
+		let title = name.replace( /^(?:Subst|Подст):/i, '' );
+		( config.bannerNamePrefixes || [] ).some( ( prefix ) => {
+			if ( title.toLowerCase().startsWith( prefix.toLowerCase() ) ) {
+				title = title.slice( prefix.length );
+				return true;
+			}
+			return false;
+		} );
+		return title;
+	};
 
-	const allClasses = uniqueArray( filterAndMap( this.bannerList.items, ( b ) => b.hasClassRatings || b.isShellTemplate, ( b ) => b.classDropdown.getValue() ) );
+	const allClasses = uniqueArray( filterAndMap( this.bannerList.items, ( b ) => canRateBanner( b ) && ( b.hasClassRatings || b.isShellTemplate ), ( b ) => b.classDropdown.getValue() ) );
 	const overallClass = ( allClasses.length === 1 && allClasses[ 0 ] ) || null;
 	const allImportances = uniqueArray( filterAndMap( this.bannerList.items, ( b ) => b.hasImportanceRatings, ( b ) => b.importanceDropdown.getValue() ) );
 	const overallImportance = ( allImportances.length === 1 && allImportances[ 0 ] ) || null;
@@ -897,7 +924,15 @@ MainWindow.prototype.makeEditSummary = function () {
 
 	const effOverallClass = ( someClassesChanged ? overallClass : null );
 	const effOverallImportance = ( someImportancesChanged ? overallImportance : null );
-	return buildEditSummary( { removed, edited, added, overallClass: effOverallClass, overallImportance: effOverallImportance, advert: config.script.advert } );
+	return buildEditSummary( {
+		removed, edited, added, overallClass: effOverallClass, overallImportance: effOverallImportance,
+		advert: config.script.advert,
+		labels: {
+			assessment: i18n.t( 'summary-assessment', config.editSummaryLanguage ),
+			class: i18n.t( 'summary-class', config.editSummaryLanguage ),
+			importance: i18n.t( 'summary-importance', config.editSummaryLanguage )
+		}
+	} );
 };
 
 export default MainWindow;

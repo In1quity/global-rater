@@ -27,6 +27,9 @@ afterEach(async () => {
 		if (manager.getCurrentWindow()) await manager.closeWindow(manager.getCurrentWindow()).closed;
 		await manager.destroy();
 	}
+	// ProcessDialog schedules a final measurement 300ms after changing dimensions.
+	// Keep jsdom alive until that callback has run after the last close.
+	await new Promise((resolve) => setTimeout(resolve, 350));
 	vi.restoreAllMocks();
 });
 

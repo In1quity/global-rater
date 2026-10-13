@@ -2,7 +2,7 @@ import config from '@constants/config.js';
 import i18n from '@services/i18n.js';
 import SuggestionLookupTextInputWidget from './SuggestionLookupTextInputWidget.js';
 import { buildBannerSuggestions } from '@services/autofill.js';
-import { formatClassRating } from '@services/shellPolicy.js';
+import { formatClassRating, displayClassRating } from '@services/shellPolicy.js';
 // <nowiki>
 
 // Helper function to remove the first matching prefix from banner name
@@ -37,8 +37,7 @@ function TopBarWidget( opts ) {
 	} );
 	this.searchBox.$element.addClass( 'rater-topBarWidget-searchBox' );
 	if ( opts && opts.banners ) {
-		buildBannerSuggestions( opts.banners )
-			.then( ( bannerOptions ) => this.searchBox.setSuggestions( bannerOptions ) );
+		this.searchBox.setSuggestions( buildBannerSuggestions( opts.banners ) );
 	}
 
 	// Add button
@@ -70,7 +69,7 @@ function TopBarWidget( opts ) {
 				} ),
 				...Array.from( new Set( config.bannerDefaults.classes.map( formatClassRating ) ) ).map( ( classname ) => new OO.ui.MenuOptionWidget( {
 					data: { class: classname },
-					label: classname
+					label: displayClassRating( classname )
 				} )
 				),
 				new OO.ui.MenuSectionOptionWidget( {
@@ -107,8 +106,14 @@ function TopBarWidget( opts ) {
 	} );
 
 	// Group the buttons together
+	this.wrapShellButton = new OO.ui.ButtonWidget( {
+		label: i18n.t( 'button-wrap-projects' ),
+		title: i18n.t( 'button-wrap-projects-title' )
+	} ).setDisabled( true );
+	this.shellAvailable = false;
 	this.menuButtons = new OO.ui.ButtonGroupWidget( {
 		items: [
+			this.wrapShellButton,
 			this.removeAllButton,
 			this.clearAllButton
 		]
@@ -132,6 +137,7 @@ function TopBarWidget( opts ) {
 	this.setAllDropDown.getMenu().connect( this, { choose: 'onRatingChoose' } );
 	this.removeAllButton.connect( this, { click: 'onRemoveAllClick' } );
 	this.clearAllButton.connect( this, { click: 'onClearAllClick' } );
+	this.wrapShellButton.connect( this, { click: 'onWrapShellClick' } );
 }
 OO.inheritClass( TopBarWidget, OO.ui.PanelLayout );
 
@@ -157,7 +163,18 @@ TopBarWidget.prototype.onClearAllClick = function () {
 	this.emit( 'clearAll' );
 };
 
+TopBarWidget.prototype.onWrapShellClick = function () {
+	this.emit( 'wrapProjects' );
+};
+
+TopBarWidget.prototype.setShellAvailable = function ( available ) {
+	this.shellAvailable = available;
+	this.wrapShellButton.setDisabled( this.disabled || !available );
+};
+
 TopBarWidget.prototype.setDisabled = function ( disable ) {
+	this.disabled = disable;
+	this.wrapShellButton.setDisabled( disable || !this.shellAvailable );
 	[
 		this.searchBox,
 		this.addBannerButton,

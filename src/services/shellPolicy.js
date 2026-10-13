@@ -9,25 +9,38 @@ const canRateBanner = function ( banner, hasShell = banner.inShell ) {
 	return banner.isShellTemplate ? usesShellClass() : !( usesShellClass() && hasShell );
 };
 
-const shouldCreateShell = function ( projectCount ) {
+const shouldCreateShell = function ( projectCount, preferences = {} ) {
+	const choice = String( preferences.shellCreation || 'wiki' );
+	if ( choice === 'never' ) {
+		return false;
+	}
+	if ( choice === 'always' ) {
+		return projectCount > 0;
+	}
+	if ( choice === '2' || choice === '3' ) {
+		return projectCount >= Number( choice );
+	}
 	const minimum = Number( config.shell.minProjects );
 	return projectCount > 0 && ( config.shell.autoCreate || ( minimum > 0 && projectCount >= minimum ) );
 };
 
-const formatClassRating = function ( value ) {
+const convertClassNotation = function ( value, format ) {
 	if ( !value ) {
 		return value;
 	}
 	const numerals = [ 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X' ];
 	const romanIndex = numerals.indexOf( String( value ).toUpperCase() );
-	if ( config.classFormat === 'arabic' && romanIndex !== -1 ) {
+	if ( format === 'arabic' && romanIndex !== -1 ) {
 		return String( romanIndex + 1 );
 	}
-	if ( config.classFormat === 'roman' && /^(?:[1-9]|10)$/.test( String( value ) ) ) {
+	if ( format === 'roman' && /^(?:[1-9]|10)$/.test( String( value ) ) ) {
 		return numerals[ Number( value ) - 1 ];
 	}
 	return value;
 };
+
+const formatClassRating = ( value ) => convertClassNotation( value, config.classFormat );
+const displayClassRating = ( value ) => convertClassNotation( value, config.classDisplayFormat );
 
 const isClassParameter = function ( banner, name ) {
 	const canonical = String( banner.classParamName || 'class' ).toLowerCase();
@@ -49,5 +62,5 @@ const resolveShellClass = function ( options ) {
 	return { value: value || null };
 };
 
-export { usesShellClass, canRateBanner, isClassParameter, shouldCreateShell, formatClassRating, resolveShellClass };
+export { usesShellClass, canRateBanner, isClassParameter, shouldCreateShell, formatClassRating, displayClassRating, resolveShellClass };
 // </nowiki>

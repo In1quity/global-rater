@@ -31,6 +31,11 @@ These site settings are merged into the built-in defaults before the interface o
 | `shell.classLocation` | `"shell"` stores a shared quality assessment in the shell when one exists, otherwise in individual banners. `"banners"` always stores assessments in individual banners. | `"banners"` | `"shell"` |
 | `shell.classParamName` | Name of the shell's assessment parameter when shell assessments are enabled. Banner parameter names come from TemplateData. | `"уровень"` | `"class"` |
 | `classFormat` | `"arabic"` prefers 1–10, `"roman"` prefers I–X, `"native"` preserves native grades. Letter grades such as FA/B/C are preserved. | `"arabic"` | `"native"` |
+| `classDisplayFormat` | Notation used for class labels in the interface, independently of the saved notation. | `"roman"` | `"native"` |
+| `shell.parameters` | Complete array of parameter definitions for this wiki's shell. Each has a `name` and optional TemplateData-style `label`, `aliases`, `suggestedvalues`, `required`, `suggested`, and `autovalue`. Arrays replace the defaults rather than merging their fields. | `1`, `collapsed`, `header`, `blp` (alias `living`), `blpo`, `activepol` | `1`, `class`, `blp` (alias `living`), `collapsed`, `listas`, `vital` |
+| `shell.aliases` | Additional names of the shell, excluded from project search. Redirect aliases are also fetched from the wiki. | `[]` | `[]` |
+| `shell.biographyBannerNames` / `shell.biographyParameters` | Optional biography banner names and supported `{ source, target, normalise }` parameter mappings. Mappings never inject a field absent from the shell schema. | Disabled | Biography mappings for `blp` and `listas` |
+| `editSummaryLanguage` | Language of the edit summary, independent of the user's interface language. | `"ru"` | `"en"` |
 
 For example, the Russian policy can be explicitly configured before importing the global loader:
 
@@ -42,11 +47,37 @@ window.RATER_CONFIG = {
 		classLocation: 'banners',
 		classParamName: 'уровень'
 	},
-	classFormat: 'arabic'
+	classFormat: 'arabic',
+	classDisplayFormat: 'roman',
+	editSummaryLanguage: 'ru'
 };
 ```
 
 To automatically group three or more projects, use `autoCreate: false, minProjects: 3`. Existing shells are retained even when automatic creation is disabled, unless removed explicitly in the editor. Changing the class preserves each banner's importance, including values absent from its current TemplateData suggestions. Conflicting individual classes require an explicit shared choice before moving them into a shell.
+
+The **Wrap projects** button wraps the current projects using the configured shell template; the shell and its aliases are excluded from the project search. Under preferences, **Automatically wrap projects** offers the wiki default, never, always, from two projects, or from three projects. This is stored as `shellCreation: "wiki" | "never" | "always" | "2" | "3"` in the local wiki's user preferences. "Never" disables automatic creation; manual wrapping and existing shells remain available.
+
+For another language, replace `shell.parameters` with that template's supported fields, for example:
+
+```javascript
+window.RATER_CONFIG = {
+	shellTemplate: 'Local project wrapper',
+	shell: {
+		autoCreate: false,
+		classLocation: 'shell',
+		classParamName: 'quality',
+		parameters: [
+			{ name: '1' },
+			{ name: 'quality' },
+			{ name: 'title', label: { en: 'Heading' } }
+		],
+		biographyBannerNames: [],
+		biographyParameters: []
+	}
+};
+```
+
+Shell metadata comes from this configuration, including when TemplateData is missing or its cached fallback contains generic project fields. Required/suggested shell parameters are added only if defined in its schema. Existing unknown parameters are retained so changing assessments does not silently remove them.
 
 ## Testing a patch and publishing
 

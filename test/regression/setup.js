@@ -37,6 +37,7 @@ globalThis.mw = {
 };
 window.mw = globalThis.mw;
 globalThis.RATER_I18N_EN = (await import('../../i18n/en.json')).default;
+globalThis.RATER_I18N_RU = (await import('../../i18n/ru.json')).default;
 
 OO.ui.isMobile = () => false;
 OO.ui.theme = new OO.ui.WikimediaUITheme();

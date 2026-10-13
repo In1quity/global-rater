@@ -2,7 +2,7 @@ import config from '@constants/config.js';
 import i18n from '@services/i18n.js';
 import API from '@services/api.js';
 import { Template } from '@utils/models/TemplateModel.js';
-import { isShellTemplate } from '@services/templateShell.js';
+import { getShellTemplateAliases } from '@services/templateShell.js';
 import { loadParamDataAndSuggestions } from '@services/templateParams.js';
 import { loadRatings } from '@services/templateRatings.js';
 import { addMissingParams } from '@services/autofill.js';
@@ -41,7 +41,7 @@ const setupRater = function ( clickEvent ) {
 	const prefsPromise = getPrefs();
 
 	// Get lists of all banners (task 1)
-	const bannersPromise = getBannerNames();
+	const bannersPromise = $.when( getBannerNames(), getShellTemplateAliases() ).then( ( banners ) => banners );
 
 	// Load talk page (task 2)
 	const loadTalkPromise = fetchTalkWikitext( talkPage.getPrefixedText() );
@@ -58,12 +58,7 @@ const setupRater = function ( clickEvent ) {
 
 	// Retrieve and store TemplateData first, then classes/importances (task 4)
 	const templateDetailsPromise = parseTalkPromise.then( ( templates ) => {
-		const perTemplate = templates.map( ( template ) => {
-			if ( isShellTemplate( template ) ) {
-				return Promise.resolve();
-			}
-			return loadParamDataAndSuggestions( template ).then( () => loadRatings( template ) );
-		} );
+		const perTemplate = templates.map( ( template ) => loadParamDataAndSuggestions( template ).then( () => loadRatings( template ) ) );
 		return Promise.all( perTemplate ).then( () => {
 			templates.forEach( ( t ) => {
 				addMissingParams( t );

@@ -16,18 +16,21 @@ const buildEditSummary = function ( params ) {
 	const overallClass = ( params && params.overallClass ) || null;
 	const overallImportance = ( params && params.overallImportance ) || null;
 	const advert = ( params && params.advert ) || '';
+	const labels = ( params && params.labels ) || {};
+	const classLabel = labels.class ? labels.class + ' ' : '';
+	const importanceLabel = labels.importance ? labels.importance + ' ' : '';
 
 	let overall = '';
 	if ( overallClass && overallImportance ) {
-		overall = ' (' + overallClass + '/' + overallImportance + ')';
+		overall = ' (' + classLabel + overallClass + ( labels.assessment ? '; ' : '/' ) + importanceLabel + overallImportance + ')';
 	} else if ( overallClass ) {
-		overall = ' (' + overallClass + ')';
+		overall = ' (' + classLabel + overallClass + ')';
 	} else if ( overallImportance ) {
-		overall = ' (' + overallImportance + ')';
+		overall = ' (' + importanceLabel + overallImportance + ')';
 	}
 
 	const body = [ ...edited, ...added, ...removed ].join( ', ' );
-	return `Assessment${ overall }: ${ body }${ advert }`;
+	return `${ labels.assessment || 'Assessment' }${ overall }: ${ body }${ advert }`;
 };
 
 export { buildEditSummary };

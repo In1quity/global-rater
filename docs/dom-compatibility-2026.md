@@ -44,6 +44,8 @@ Tests cover preservation of assessments and importance, unsupported shared class
 
 The suite additionally exercises the real WindowManager open/close lifecycle, including the close button, cancelling and accepting a real confirmation, and reopening. Publication tests check that parser markers survive copying through a text system that replaces literal control characters. All 54 tests pass on each of the three OOUI versions above.
 
+Version 3.3.3 adds per-wiki shell schemas, manual wrapping and user thresholds, filters shells out of project suggestions, separates Roman display from Arabic serialization, bundles the Russian dictionary, localizes ruwiki summaries and allows project menu labels to wrap. The suite now contains 74 passing tests on each OOUI version, including an editor opening with its required shell ready. The project menu width and wrapping rules are checked in jsdom; final layout should still be checked in the wiki browser.
+
 The inherited `npm run test:run` suite still has 23 failing files: 22 import the removed `src/utils/Template.js`, and one uses an incomplete widget mock. Its failure counts match the PR #2 baseline. The regression suite runs independently with real OOUI.
 
 This is automated jsdom coverage plus inspection of current unauthenticated page HTML. It does not establish pixel-level layout, keyboard focus, Codex/OOUI interaction or saving under a logged-in browser session on every skin. Before publication, test the generated loader/core on a user sandbox in ruwiki and enwiki, including long previews, dropdowns, discard/reopen and save.

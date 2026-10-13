@@ -1,5 +1,6 @@
 import i18n from '@services/i18n.js';
 import config from '@constants/config.js';
+import { isShellTemplateName } from '@services/templateShell.js';
 // <nowiki>
 
 // Build banner suggestions list for TopBarWidget
@@ -20,7 +21,7 @@ const buildBannerSuggestions = function ( banners ) {
 		...( banners.notWPBM || [] ).map( ( name ) => ( { label: removeBannerPrefix( name ), data: { name } } ) ),
 		...( banners.inactive || [] ).map( ( name ) => ( { label: removeBannerPrefix( name ) + ' [inactive]', data: { name, withoutRatings: true } } ) ),
 		...( banners.wir || [] ).map( ( name ) => ( { label: name + ' [Women In Red meetup/initiative]', data: { name, withoutRatings: true } } ) )
-	];
+	].filter( ( suggestion ) => !isShellTemplateName( suggestion.data.name ) );
 };
 
 // Infer default class/importance from ORES and preferences
@@ -56,8 +57,8 @@ const addMissingParams = function ( template ) {
 	const subjectTitle = mw.Title.newFromText( config.mw.wgPageName ).getSubjectPage();
 
 	// Autofill listas parameter for WP:BIO
-	const isBiographyBanner = template.getTitle().getMainText() === 'WikiProject Biography' ||
-		( template.redirectTarget && template.redirectTarget.getMainText() === 'WikiProject Biography' );
+	const isBiographyBanner = ( config.shell.biographyBannerNames || [] ).includes( template.getTitle().getMainText() ) ||
+		( template.redirectTarget && ( config.shell.biographyBannerNames || [] ).includes( template.redirectTarget.getMainText() ) );
 	if ( isBiographyBanner && !template.getParam( 'listas' ) ) {
 		template.parameters.push( { name: 'listas', value: makeListAs( subjectTitle ), autofilled: true } );
 	}

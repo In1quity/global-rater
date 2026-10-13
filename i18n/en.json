@@ -86,6 +86,16 @@
 	"error-parameter-present": "Parameter is already present",
 	"error-shell-required": "The banner shell is not ready. Wait for it to load, or add a shell before saving a shared assessment.",
 	"error-conflicting-classes": "The project banners have different assessments. Choose a shared class in the banner shell or with Set all before saving.",
-	"error-unsupported-shell-class": "A project assessment cannot be stored in this banner shell. Choose a supported shared class before saving."
+	"error-unsupported-shell-class": "A project assessment cannot be stored in this banner shell. Choose a supported shared class before saving.",
+	"button-wrap-projects": "Wrap projects",
+	"button-wrap-projects-title": "Wrap the current projects in a banner shell",
+	"prefs-shell-creation": "Automatically wrap projects",
+	"prefs-shell-wiki": "Use this wiki's default",
+	"prefs-shell-never": "Never",
+	"prefs-shell-always": "Always",
+	"prefs-shell-two": "From two projects",
+	"prefs-shell-three": "From three projects",
+	"summary-assessment": "Assessment",
+	"summary-class": "class",
+	"summary-importance": "importance"
 }
-

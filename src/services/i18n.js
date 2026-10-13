@@ -12,7 +12,8 @@ try {
 
 // Cache for loaded dictionaries; prefill with English
 const cachedDictionaries = {
-	en: fallbackDict
+	en: fallbackDict,
+	ru: typeof RATER_I18N_RU !== 'undefined' ? RATER_I18N_RU : null
 };
 
 // In-flight loads to avoid duplicate requests
@@ -54,8 +55,8 @@ function loadLanguage( langCode ) {
 	return deferred.promise();
 }
 
-function translate( key ) {
-	const code = getLangCode();
+function translate( key, langCode ) {
+	const code = langCode || getLangCode();
 	const dict = cachedDictionaries[ code ];
 	const en = fallbackDict || {};
 	return ( dict && dict[ key ] ) || en[ key ] || key;
