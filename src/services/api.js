@@ -25,7 +25,8 @@ API.getORES = function ( revisionID, wiki ) {
 
 /* ---------- Raw wikitext ---------------------------------------------------------------------- */
 API.getRaw = function ( page ) {
-	return fetch( 'https:' + mw.config.get( 'wgServer' ) + mw.util.getUrl( page, { action: 'raw' } ) )
+	const server = new URL( mw.config.get( 'wgServer' ), window.location.href );
+	return fetch( new URL( mw.util.getUrl( page, { action: 'raw' } ), server ).href )
 		.then( ( response ) => response.text() )
 		.then( ( data ) => {
 			if ( !data ) {

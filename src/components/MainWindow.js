@@ -3,6 +3,7 @@ import BannerListWidget from './BannerListWidget.js';
 import config from '@constants/config.js';
 import API, { makeErrorMsg } from '@services/api.js';
 import PrefsFormWidget from './PrefsFormWidget.js';
+import { createDialogError } from './dialogErrors.js';
 import { setPrefs as ApiSetPrefs } from '@services/prefs.js';
 import { applyBannerInsert } from '@services/bannerApply.js';
 import { parsePreview, compareDiff } from '@services/preview.js';
@@ -16,12 +17,13 @@ import * as cache from '@services/cache.js';
 import i18n from '@services/i18n.js';
 import logger from '@services/logger.js';
 import { canRateBanner, usesShellClass, formatClassRating } from '@services/shellPolicy.js';
+import { isShellTemplateName } from '@services/templateShell.js';
 const log = logger.get( 'MainWindow' );
 // <nowiki>
 
 // Defer work until execute(), so synchronous errors also release the pending state.
 const createActionProcess = function ( run ) {
-	return new OO.ui.Process( () => $.Deferred().resolve().then( run ).catch( ( error ) => $.Deferred().reject( [ error instanceof OO.ui.Error ? error : new OO.ui.Error( error.message || String( error ) ) ] ).promise()
+	return new OO.ui.Process( () => $.Deferred().resolve().then( run ).catch( ( error ) => $.Deferred().reject( [ error instanceof OO.ui.Error ? error : new OO.ui.Error( ( error && error.message ) || String( error ) ) ] ).promise()
 	) );
 };
 
@@ -50,7 +52,7 @@ MainWindow.static.title = ( () => {
 	titleSpan.appendChild( talkLink );
 	titleSpan.appendChild( document.createTextNode( ') ' ) );
 	titleSpan.appendChild( versionSpan );
-	return titleSpan;
+	return $( titleSpan );
 } )();
 MainWindow.static.size = 'large';
 // Function to create actions with optional localization
@@ -143,7 +145,7 @@ MainWindow.prototype.initialize = function () {
 	oresLink.href = mw.util.getUrl( 'mw:ORES' );
 	oresLink.target = '_blank';
 	const oresImg = document.createElement( 'img' );
-	oresImg.src = '//upload.wikimedia.org/wikipedia/commons/thumb/5/51/Objective_Revision_Evaluation_Service_logo.svg/40px-Objective_Revision_Evaluation_Service_logo.svg.png';
+	oresImg.src = 'https://upload.wikimedia.org/wikipedia/commons/5/51/Objective_Revision_Evaluation_Service_logo.svg';
 	oresImg.title = 'Machine predicted quality from ORES';
 	oresImg.alt = 'ORES logo';
 	oresImg.width = '20';
@@ -224,7 +226,8 @@ MainWindow.prototype.initialize = function () {
 		setClasses: 'onSetClasses',
 		setImportances: 'onSetImportances',
 		removeAll: 'onRemoveAll',
-		clearAll: 'onClearAll'
+		clearAll: 'onClearAll',
+		wrapProjects: 'onWrapProjects'
 	} );
 	this.bannerList.connect( this, { updatedSize: 'onBannerListUpdateSize' } );
 
@@ -252,6 +255,10 @@ MainWindow.prototype.initialize = function () {
 };
 
 MainWindow.prototype.onBannerListUpdateSize = function () {
+	if ( this.topBar && this.topBar.setShellAvailable ) {
+		this.topBar.setShellAvailable( this.bannerList.items.some( ( banner ) => !banner.isShellTemplate ) &&
+			!this.bannerList.items.some( ( banner ) => banner.isShellTemplate ) && !this.bannerList.shellCreationPromise );
+	}
 	// Get the current scroll amount
 	const scrollAmount = this.$body.scrollTop();
 	// Update size (which resets the scroll to 0)
@@ -261,6 +268,9 @@ MainWindow.prototype.onBannerListUpdateSize = function () {
 };
 
 MainWindow.prototype.makeDraggable = function () {
+	if ( this.removeDragHandlers ) {
+		this.removeDragHandlers();
+	}
 	const $frameEl = this.$element.find( '.oo-ui-window-frame' );
 	const $handleEl = this.$element.find( '.oo-ui-processDialog-location' ).css( { cursor: 'move' } );
 	// Position for css translate transformations, relative to initial position
@@ -329,6 +339,13 @@ MainWindow.prototype.makeDraggable = function () {
 	$handleEl.on( pointer + 'down.raterMainWin', onDragStart );
 	document.body.addEventListener( pointer + 'move', onDragMove );
 	document.body.addEventListener( pointer + 'up', onDragEnd );
+	this.removeDragHandlers = () => {
+		$handleEl.off( '.raterMainWin' );
+		document.body.removeEventListener( pointer + 'move', onDragMove );
+		document.body.removeEventListener( pointer + 'up', onDragEnd );
+		$frameEl.css( 'will-change', '' );
+		this.removeDragHandlers = null;
+	};
 };
 
 // Override the getBodyHeight() method to specify a custom height
@@ -470,6 +487,7 @@ MainWindow.prototype.getSetupProcess = function ( data ) {
 			this.talkpage = data.talkpage;
 			// Force a size update to ensure eveything fits okay
 			this.updateSize();
+			return this.bannerList.shellCreationPromise;
 		}, this );
 };
 
@@ -508,16 +526,7 @@ MainWindow.prototype.getActionProcess = function ( action ) {
 			},
 			// Failure
 			( code, err ) => {
-				const errorDiv = document.createElement( 'div' );
-				const strong = document.createElement( 'strong' );
-				strong.className = 'rater-mainWindow-errorStrong';
-				strong.textContent = i18n.t( 'error-save-prefs' );
-				const span = document.createElement( 'span' );
-				span.className = 'rater-mainWindow-errorMessage';
-				span.textContent = makeErrorMsg( code, err );
-				errorDiv.appendChild( strong );
-				errorDiv.appendChild( span );
-				throw new OO.ui.Error( errorDiv );
+				throw createDialogError( 'error-save-prefs', code, err );
 			}
 		)
 		);
@@ -546,16 +555,7 @@ MainWindow.prototype.getActionProcess = function ( action ) {
 				watchlist: this.preferences.watchlist
 			} )
 		).catch( ( code, err ) => {
-			const errorDiv = document.createElement( 'div' );
-			const strong = document.createElement( 'strong' );
-			strong.className = 'rater-mainWindow-errorStrong';
-			strong.textContent = i18n.t( 'error-could-not-save' );
-			const span = document.createElement( 'span' );
-			span.className = 'rater-mainWindow-errorMessage';
-			span.textContent = makeErrorMsg( code, err );
-			errorDiv.appendChild( strong );
-			errorDiv.appendChild( span );
-			throw new OO.ui.Error( errorDiv );
+			throw createDialogError( 'error-could-not-save', code, err );
 		} )
 		).next( () => {
 			this.close( {
@@ -585,16 +585,7 @@ MainWindow.prototype.getActionProcess = function ( action ) {
 			this.updateSize();
 		} )
 			.catch( ( code, err ) => {
-				const errorDiv = document.createElement( 'div' );
-				const strong = document.createElement( 'strong' );
-				strong.className = 'rater-mainWindow-errorStrong';
-				strong.textContent = i18n.t( 'error-could-not-show-changes' );
-				const span = document.createElement( 'span' );
-				span.className = 'rater-mainWindow-errorMessage';
-				span.textContent = makeErrorMsg( code, err );
-				errorDiv.appendChild( strong );
-				errorDiv.appendChild( span );
-				throw new OO.ui.Error( errorDiv );
+				throw createDialogError( 'error-could-not-show-changes', code, err );
 			} )
 		);
 
@@ -666,9 +657,10 @@ MainWindow.prototype.getActionProcess = function ( action ) {
 				diffTable.appendChild( headerRow );
 
 				// Add diff content
-				const tempDiv = document.createElement( 'div' );
-				tempDiv.innerHTML = result.compare[ '*' ];
-				Array.from( tempDiv.children ).forEach( ( child ) => diffTable.appendChild( child ) );
+				// Diff rows need a table parsing context; a div strips tr/td markup.
+				const tempTable = document.createElement( 'table' );
+				tempTable.innerHTML = result.compare[ '*' ];
+				Array.from( tempTable.children ).forEach( ( child ) => diffTable.appendChild( child ) );
 
 				const tfoot = document.createElement( 'tfoot' );
 				const footerRow = document.createElement( 'tr' );
@@ -691,16 +683,7 @@ MainWindow.prototype.getActionProcess = function ( action ) {
 				this.updateSize();
 			} )
 			.catch( ( code, err ) => {
-				const errorDiv = document.createElement( 'div' );
-				const strong = document.createElement( 'strong' );
-				strong.className = 'rater-mainWindow-errorStrong';
-				strong.textContent = i18n.t( 'error-could-not-show-changes' );
-				const span = document.createElement( 'span' );
-				span.className = 'rater-mainWindow-errorMessage';
-				span.textContent = makeErrorMsg( code, err );
-				errorDiv.appendChild( strong );
-				errorDiv.appendChild( span );
-				throw new OO.ui.Error( errorDiv );
+				throw createDialogError( 'error-could-not-show-changes', code, err );
 			} )
 		);
 
@@ -729,6 +712,9 @@ MainWindow.prototype.getActionProcess = function ( action ) {
 MainWindow.prototype.getTeardownProcess = function ( data ) {
 	return MainWindow.super.prototype.getTeardownProcess.call( this, data )
 		.first( () => {
+			if ( this.removeDragHandlers ) {
+				this.removeDragHandlers();
+			}
 			this.bannerList.clearItems();
 			this.topBar.searchBox.setValue( '' );
 			this.contentArea.setItem( this.editLayout );
@@ -737,7 +723,6 @@ MainWindow.prototype.getTeardownProcess = function ( data ) {
 			this.pagetypeLabel.toggle( false ).setLabel( '' );
 
 			this.$element.find( '.oo-ui-window-frame' ).css( 'transform', '' );
-			this.$element.find( '.oo-ui-processDialog-location' ).off( '.raterMainWin' );
 		} );
 };
 
@@ -759,12 +744,16 @@ MainWindow.prototype.onSearchSelect = function ( data ) {
 		this.topBar.searchBox.popPending().focus();
 		return;
 	}
+	if ( isShellTemplateName( name ) ) {
+		this.topBar.searchBox.popPending().setValue( '' );
+		return this.onWrapProjects();
+	}
 	const existingBanner = this.bannerList.items.find( ( banner ) => banner.mainText === name || banner.redirectTargetMainText === name );
 
 	// Abort and show alert if banner already exists
 	if ( existingBanner ) {
 		this.topBar.searchBox.popPending();
-		return OO.ui.alert( 'There is already a {{' + name + '}} banner' ).then( this.searchBox.focus() );
+		return OO.ui.alert( 'There is already a {{' + name + '}} banner' ).then( () => this.topBar.searchBox.focus() );
 	}
 
 	// Also check raw talk wikitext content to prevent duplicates that are not in UI for any reason
@@ -773,14 +762,14 @@ MainWindow.prototype.onSearchSelect = function ( data ) {
 			const exists = containsTemplate( { content: this.talkWikitext, names: [ name ], namespaceAliases: [], topMarker: '__TOP__' } );
 			if ( exists ) {
 				this.topBar.searchBox.popPending();
-				return OO.ui.alert( 'The page already contains {{' + name + '}}' ).then( this.searchBox.focus() );
+				return OO.ui.alert( 'The page already contains {{' + name + '}}' ).then( () => this.topBar.searchBox.focus() );
 			}
 		}
 	} catch ( _e ) { /* ignore */ }
 
 	// If user typed a short form without a recognized prefix, try to auto-prepend the first configured prefix
 	let confirmText;
-	const ensured = ensureBannerPrefix( name, config.bannerNamePrefixes || [] );
+	const ensured = data && data.name ? { name, hasValidPrefix: true } : ensureBannerPrefix( name, config.bannerNamePrefixes || [] );
 	name = ensured.name;
 	if ( !ensured.hasValidPrefix && !ensured.addedPrefix ) {
 		confirmText = new OO.ui.HtmlSnippet(
@@ -839,6 +828,12 @@ MainWindow.prototype.onSetImportances = function ( importanceVal ) {
 	} );
 };
 
+MainWindow.prototype.onWrapProjects = function () {
+	this.bannerList.addShellTemplateIfNeeeded( true );
+	this.onBannerListUpdateSize();
+	return Promise.resolve( this.bannerList.shellCreationPromise ).then( () => this.onBannerListUpdateSize() );
+};
+
 MainWindow.prototype.onRemoveAll = function () {
 	this.bannerList.clearItems();
 };
@@ -870,9 +865,19 @@ MainWindow.prototype.makeEditSummary = function () {
 	const removed = [];
 	const edited = [];
 	const added = [];
-	const shortName = ( name ) => name.replace( 'WikiProject ', '' ).replace( 'Subst:', '' );
+	const shortName = ( name ) => {
+		let title = name.replace( /^(?:Subst|Подст):/i, '' );
+		( config.bannerNamePrefixes || [] ).some( ( prefix ) => {
+			if ( title.toLowerCase().startsWith( prefix.toLowerCase() ) ) {
+				title = title.slice( prefix.length );
+				return true;
+			}
+			return false;
+		} );
+		return title;
+	};
 
-	const allClasses = uniqueArray( filterAndMap( this.bannerList.items, ( b ) => b.hasClassRatings || b.isShellTemplate, ( b ) => b.classDropdown.getValue() ) );
+	const allClasses = uniqueArray( filterAndMap( this.bannerList.items, ( b ) => canRateBanner( b ) && ( b.hasClassRatings || b.isShellTemplate ), ( b ) => b.classDropdown.getValue() ) );
 	const overallClass = ( allClasses.length === 1 && allClasses[ 0 ] ) || null;
 	const allImportances = uniqueArray( filterAndMap( this.bannerList.items, ( b ) => b.hasImportanceRatings, ( b ) => b.importanceDropdown.getValue() ) );
 	const overallImportance = ( allImportances.length === 1 && allImportances[ 0 ] ) || null;
@@ -919,7 +924,15 @@ MainWindow.prototype.makeEditSummary = function () {
 
 	const effOverallClass = ( someClassesChanged ? overallClass : null );
 	const effOverallImportance = ( someImportancesChanged ? overallImportance : null );
-	return buildEditSummary( { removed, edited, added, overallClass: effOverallClass, overallImportance: effOverallImportance, advert: config.script.advert } );
+	return buildEditSummary( {
+		removed, edited, added, overallClass: effOverallClass, overallImportance: effOverallImportance,
+		advert: config.script.advert,
+		labels: {
+			assessment: i18n.t( 'summary-assessment', config.editSummaryLanguage ),
+			class: i18n.t( 'summary-class', config.editSummaryLanguage ),
+			importance: i18n.t( 'summary-importance', config.editSummaryLanguage )
+		}
+	} );
 };
 
 export default MainWindow;

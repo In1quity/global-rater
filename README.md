@@ -31,6 +31,11 @@ These site settings are merged into the built-in defaults before the interface o
 | `shell.classLocation` | `"shell"` stores a shared quality assessment in the shell when one exists, otherwise in individual banners. `"banners"` always stores assessments in individual banners. | `"banners"` | `"shell"` |
 | `shell.classParamName` | Name of the shell's assessment parameter when shell assessments are enabled. Banner parameter names come from TemplateData. | `"уровень"` | `"class"` |
 | `classFormat` | `"arabic"` prefers 1–10, `"roman"` prefers I–X, `"native"` preserves native grades. Letter grades such as FA/B/C are preserved. | `"arabic"` | `"native"` |
+| `classDisplayFormat` | Notation used for class labels in the interface, independently of the saved notation. | `"roman"` | `"native"` |
+| `shell.parameters` | Complete array of parameter definitions for this wiki's shell. Each has a `name` and optional TemplateData-style `label`, `aliases`, `suggestedvalues`, `required`, `suggested`, and `autovalue`. Arrays replace the defaults rather than merging their fields. | `1`, `collapsed`, `header`, `blp` (alias `living`), `blpo`, `activepol` | `1`, `class`, `blp` (alias `living`), `collapsed`, `listas`, `vital` |
+| `shell.aliases` | Additional names of the shell, excluded from project search. Redirect aliases are also fetched from the wiki. | `[]` | `[]` |
+| `shell.biographyBannerNames` / `shell.biographyParameters` | Optional biography banner names and supported `{ source, target, normalise }` parameter mappings. Mappings never inject a field absent from the shell schema. | Disabled | Biography mappings for `blp` and `listas` |
+| `editSummaryLanguage` | Language of the edit summary, independent of the user's interface language. | `"ru"` | `"en"` |
 
 For example, the Russian policy can be explicitly configured before importing the global loader:
 
@@ -42,15 +47,41 @@ window.RATER_CONFIG = {
 		classLocation: 'banners',
 		classParamName: 'уровень'
 	},
-	classFormat: 'arabic'
+	classFormat: 'arabic',
+	classDisplayFormat: 'roman',
+	editSummaryLanguage: 'ru'
 };
 ```
 
 To automatically group three or more projects, use `autoCreate: false, minProjects: 3`. Existing shells are retained even when automatic creation is disabled, unless removed explicitly in the editor. Changing the class preserves each banner's importance, including values absent from its current TemplateData suggestions. Conflicting individual classes require an explicit shared choice before moving them into a shell.
 
+The **Wrap projects** button wraps the current projects using the configured shell template; the shell and its aliases are excluded from the project search. Under preferences, **Automatically wrap projects** offers the wiki default, never, always, from two projects, or from three projects. This is stored as `shellCreation: "wiki" | "never" | "always" | "2" | "3"` in the local wiki's user preferences. "Never" disables automatic creation; manual wrapping and existing shells remain available.
+
+For another language, replace `shell.parameters` with that template's supported fields, for example:
+
+```javascript
+window.RATER_CONFIG = {
+	shellTemplate: 'Local project wrapper',
+	shell: {
+		autoCreate: false,
+		classLocation: 'shell',
+		classParamName: 'quality',
+		parameters: [
+			{ name: '1' },
+			{ name: 'quality' },
+			{ name: 'title', label: { en: 'Heading' } }
+		],
+		biographyBannerNames: [],
+		biographyParameters: []
+	}
+};
+```
+
+Shell metadata comes from this configuration, including when TemplateData is missing or its cached fallback contains generic project fields. Required/suggested shell parameters are added only if defined in its schema. Existing unknown parameters are retained so changing assessments does not silently remove them.
+
 ## Testing a patch and publishing
 
-1. Run `npm ci`, `npm run test:regression`, and `npm run build:dev`.
+1. Run `npm ci`, `npm run test:ooui`, and `npm run build:dev`.
 2. Copy `dist/rater-core.js` to a sandbox JavaScript page you control on MediaWiki.org (for example, `User:YOUR_USERNAME/rater-core-test.js`).
 3. Copy `dist/rater.js` to your sandbox loader page. Change its `title` constant to the sandbox core page, retaining the MediaWiki.org host.
 4. Import that sandbox loader from your local wiki's common.js and check loading, preview, diff, save, and closing the dialog. Use a test talk page or a sandbox.
@@ -61,7 +92,7 @@ For publication, run `npm run build:prod`, copy `dist/rater-core.js` to `User:In
 
 The inherited [application diagram](architecture_main.svg) and [OOUI diagram](architecture_ooui.svg) describe upstream Rater v2. The current fork's modules are listed below; its loading dialog uses Vue/Codex.
 
-The regression suite uses real jQuery and OOUI to check dialog actions, assessment policies, TemplateData caching, and wikitext edits. The older `npm run test:run` suite also remains available; it had 23 failing files before this synchronization, mostly importing the removed `src/utils/Template.js` and using incomplete widget mocks.
+The regression suite uses real jQuery and OOUI to check dialog actions, assessment policies, TemplateData caching, and wikitext edits. `npm run test:regression` checks the current OOUI version; `npm run test:ooui` repeats it against 0.53.0, 0.53.2 and 0.54.2. See the [2025–2026 DOM compatibility review](docs/dom-compatibility-2026.md) for platform changes, fixes and coverage limits. The older `npm run test:run` suite also remains available; it had 23 failing files before this synchronization, mostly importing the removed `src/utils/Template.js` and using incomplete widget mocks.
 
 ## 🏗️ Project Structure
 

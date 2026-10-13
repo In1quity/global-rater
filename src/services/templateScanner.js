@@ -230,6 +230,9 @@ const findBannerTemplatesOnTalk = function ( params ) {
 				const hasKnownPrefix = bannerNamePrefixes.some( ( prefix ) => typeof prefix === 'string' && mainText && mainText.indexOf( prefix ) === 0 );
 				return isListed || hasKnownPrefix;
 			} ).map( ( template ) => {
+				if ( isShellTemplate( template ) ) {
+					return template;
+				}
 				const mainText = ( template.getTitle && typeof template.getTitle === 'function' ) ?
 					getCanonicalName( template ) :
 					'';

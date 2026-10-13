@@ -156,6 +156,31 @@ html body.rater-mainWindow-open .rater-windowManager > .oo-ui-dialog.oo-ui-windo
 }
 
 /* MainWindow styles */
+.rater-bannerWidget-titleButtonsGroup {
+	width: 100%;
+	display: flex;
+	flex-direction: column;
+	max-width: calc(100vw - 48px);
+}
+
+.rater-bannerWidget-titleButtonsGroup .oo-ui-buttonElement {
+	margin: 0;
+}
+
+.rater-bannerWidget-titleButtonsGroup .oo-ui-buttonElement-button {
+	box-sizing: border-box;
+	width: 100%;
+	max-width: 100%;
+	text-align: left;
+}
+
+.rater-bannerWidget-titleButtonsGroup .oo-ui-labelElement-label {
+	white-space: normal;
+	overflow-wrap: anywhere;
+	overflow: visible;
+	text-overflow: clip;
+}
+
 .rater-mainWindow-oresLabel {
 	float: right;
 	padding: 10px;
@@ -336,10 +361,6 @@ html body.rater-mainWindow-open .rater-windowManager > .oo-ui-dialog.oo-ui-windo
 
 .rater-bannerWidget-removeButton a,
 .rater-bannerWidget-clearButton a {
-	width: 100%;
-}
-
-.rater-bannerWidget-titleButtonsGroup {
 	width: 100%;
 }
 

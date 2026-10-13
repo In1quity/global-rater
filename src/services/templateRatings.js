@@ -1,13 +1,15 @@
 import API from '@services/api.js';
 import config from '@constants/config.js';
 import * as cache from '@services/cache.js';
+import { isShellTemplate } from '@services/templateShell.js';
 // <nowiki>
 
 const loadRatings = function ( template ) {
 	const done = $.Deferred();
 
-	if ( template.isShellTemplate && template.isShellTemplate() ) {
+	if ( isShellTemplate( template ) ) {
 		template.classes = [ ...config.bannerDefaults.classes ];
+		template.importances = [];
 		return done.resolve();
 	} else if ( ( template.classes && template.importances ) || template.withoutRatings ) {
 		return done.resolve();

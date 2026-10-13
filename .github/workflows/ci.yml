@@ -26,7 +26,7 @@ jobs:
       run: npm run lint
 
     - name: Run regression tests
-      run: npm run test:regression
+      run: npm run test:ooui
     
     - name: Build project
       run: npm run build

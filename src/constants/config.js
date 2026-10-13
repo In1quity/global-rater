@@ -9,7 +9,7 @@ const config = {
 	// Script info
 	script: {
 		// Advert to append to edit summaries
-		advert: ` ([[WP:RATER#${ version }|Rater]])`,
+		advert: isRussianWiki ? ` ([[mw:User:Iniquity/rater.js#${ version }|Рейтер]])` : ` ([[WP:RATER#${ version }|Rater]])`,
 		version: version
 	},
 	ores: {
@@ -29,6 +29,7 @@ const config = {
 		autofillClassFromOres: true,
 		autofillImportance: true,
 		collapseParamsLowerLimit: 6,
+		shellCreation: 'wiki',
 		watchlist: 'preferences'
 	},
 	// MediaWiki configuration values
@@ -178,9 +179,33 @@ const config = {
 		autoCreate: !isRussianWiki,
 		minProjects: null,
 		classLocation: isRussianWiki ? 'banners' : 'shell',
-		classParamName: isRussianWiki ? 'уровень' : 'class'
+		classParamName: isRussianWiki ? 'уровень' : 'class',
+		aliases: [],
+		// Arrays are replaced by external config, so another wiki inherits no extra fields.
+		parameters: isRussianWiki ? [
+			{ name: '1' },
+			{ name: 'collapsed', label: { en: 'Collapsed', ru: 'Свёрнутый блок' }, suggestedvalues: [ 'yes', 'no' ] },
+			{ name: 'header', label: { en: 'Header', ru: 'Заголовок блока' } },
+			{ name: 'blp', aliases: [ 'living' ], label: { en: 'Living person', ru: 'Живущий человек' }, suggestedvalues: [ 'yes', 'no' ] },
+			{ name: 'blpo', label: { en: 'Other living people', ru: 'Другие живущие люди' }, suggestedvalues: [ 'yes', 'no' ] },
+			{ name: 'activepol', label: { en: 'Active politician', ru: 'Действующий политик' }, suggestedvalues: [ 'yes', 'no' ] }
+		] : [
+			{ name: '1' },
+			{ name: 'class' },
+			{ name: 'blp', aliases: [ 'living' ], label: { en: 'Living person' }, suggestedvalues: [ 'yes', 'no' ] },
+			{ name: 'collapsed', label: { en: 'Collapsed' }, suggestedvalues: [ 'yes', 'no' ] },
+			{ name: 'listas', label: { en: 'Sort key' } },
+			{ name: 'vital', label: { en: 'Vital article' } }
+		],
+		biographyBannerNames: isRussianWiki ? [] : [ 'WikiProject Biography' ],
+		biographyParameters: isRussianWiki ? [] : [
+			{ source: 'living', target: 'blp', normalise: true },
+			{ source: 'listas', target: 'listas', normalise: false }
+		]
 	},
 	classFormat: isRussianWiki ? 'arabic' : 'native',
+	classDisplayFormat: isRussianWiki ? 'roman' : 'native',
+	editSummaryLanguage: isRussianWiki ? 'ru' : 'en',
 	defaultParameterData: {
 		auto: {
 			label: {
@@ -247,6 +272,7 @@ const config = {
 };
 
 if ( isRussianWiki ) {
+	config.bannerNamePrefixes = [ 'Статья проекта ' ];
 	config.bannerDefaults.classes = [ 'I', 'II', 'III', 'IV', 'ИС', 'ХС', 'ДС', 'ИСП', 'список' ];
 	config.bannerDefaults.importances = [ 'высшая', 'высокая', 'средняя', 'низкая' ];
 }

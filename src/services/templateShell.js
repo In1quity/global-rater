@@ -1,50 +1,37 @@
-import API from '@services/api.js';
 import config from '@constants/config.js';
 import { stripAnyTemplateNs } from '@utils/wikitext.js';
 import { getTemplateAliases } from '@utils/aliases.js';
 // <nowiki>
 
-let cachedShellAliases = null;
+const cachedShellAliases = new Map();
+
+const getShellTemplateAliasesSync = function () {
+	const result = cachedShellAliases.get( config.shellTemplate );
+	return [ config.shellTemplate ].concat( config.shell.aliases || [], result && result.aliases || [] );
+};
 
 // Shell aliases source: reuse aliases service to avoid duplication
 const getShellTemplateAliases = function () {
-	if ( cachedShellAliases ) {
-		return $.Deferred().resolve( cachedShellAliases ).promise();
+	const title = config.shellTemplate;
+	if ( cachedShellAliases.has( title ) ) {
+		return cachedShellAliases.get( title );
 	}
-	return getTemplateAliases( config.shellTemplate ).then( ( list ) => {
-		cachedShellAliases = Array.isArray( list ) && list.length ? list : [ stripAnyTemplateNs( config.shellTemplate ) ];
-		return cachedShellAliases;
-	} ).catch( () => [ stripAnyTemplateNs( config.shellTemplate ) ] );
+	const result = getTemplateAliases( title ).then( ( list ) => {
+		result.aliases = Array.isArray( list ) ? list : [];
+		return getShellTemplateAliasesSync();
+	} ).catch( () => getShellTemplateAliasesSync() );
+	cachedShellAliases.set( title, result );
+	return result;
 };
 
-const getShellTemplateAliasesSync = function () {
-	if ( Array.isArray( cachedShellAliases ) && cachedShellAliases.length ) {
-		return cachedShellAliases.slice();
-	}
-	return [ stripAnyTemplateNs( config.shellTemplate ) ];
-};
+const normalizeNs = ( name ) => stripAnyTemplateNs( name ).replace( /^(?:subst|подст):/i, '' ).replace( /_/g, ' ' ).trim().toLowerCase();
 
-const normalizeNs = ( name ) => stripAnyTemplateNs( name );
+const isShellTemplateName = ( name ) => getShellTemplateAliasesSync().some( ( alias ) => normalizeNs( alias ) === normalizeNs( name ) );
 
 const isShellTemplate = function ( template ) {
 	const mainText = template.redirectTarget ? template.redirectTarget.getMainText() : template.getTitle().getMainText();
-	const normalizedMain = normalizeNs( mainText );
-	const normalizedTarget = normalizeNs( config.shellTemplate );
-	if ( normalizedMain === normalizedTarget ) {
-		return true;
-	}
-	const localAliases = ( Array.isArray( cachedShellAliases ) && cachedShellAliases.length ) ? cachedShellAliases : getShellTemplateAliasesSync();
-	const aliasMatch = Array.isArray( localAliases ) && localAliases.some( ( name ) => normalizeNs( name ) === normalizedMain );
-	if ( aliasMatch ) {
-		return true;
-	}
-	try {
-		getShellTemplateAliases().then( ( list ) => {
-			cachedShellAliases = list || [];
-		} );
-	} catch ( _e ) {}
-	return false;
+	return isShellTemplateName( mainText );
 };
 
-export { isShellTemplate, getShellTemplateAliases, getShellTemplateAliasesSync };
+export { isShellTemplate, isShellTemplateName, getShellTemplateAliases, getShellTemplateAliasesSync };
 // </nowiki>

@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import cssInjectedByJsPlugin from 'vite-plugin-css-injected-by-js';
 import fs from 'node:fs';
 import path from 'node:path';
+import { escapeWikiControlCharacters } from './scripts/wiki-safe-source.js';
 export default defineConfig(({ command, mode }) => {
 	const isProd = command === 'build' && mode === 'production';
 	const isDev = command === 'serve' || mode === 'development';
@@ -30,6 +31,7 @@ export default defineConfig(({ command, mode }) => {
 	const footer = `/* </nowiki> */`;
 	const buildDate = new Date().toISOString().slice(0, 10);
 	const enDict = JSON.parse(fs.readFileSync(new URL('./i18n/en.json', import.meta.url)));
+	const ruDict = JSON.parse(fs.readFileSync(new URL('./i18n/ru.json', import.meta.url)));
 	
 	return {
 	// Modern environment handling
@@ -49,6 +51,7 @@ export default defineConfig(({ command, mode }) => {
 		RATER_DOC_PAGE: JSON.stringify(pkg.documentation),
 		BUILD_DATE: JSON.stringify(buildDate),
 		RATER_I18N_EN: JSON.stringify(enDict),
+		RATER_I18N_RU: JSON.stringify(ruDict),
 		// Modern global definitions
 		__DEV__: isDev,
 		__PROD__: isProd
@@ -86,7 +89,7 @@ export default defineConfig(({ command, mode }) => {
 			generateBundle( _options, bundle ) {
 				for ( const [ fileName, chunk ] of Object.entries( bundle ) ) {
 					if ( chunk.type === 'chunk' && fileName.endsWith( '.js' ) ) {
-						chunk.code = `${banner}\n${chunk.code}\n${footer}`;
+						chunk.code = escapeWikiControlCharacters( `${banner}\n${chunk.code}\n${footer}` );
 					}
 				}
 			}

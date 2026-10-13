@@ -4,7 +4,7 @@ import { normaliseYesNo, filterAndMap, uniqueArray } from '@utils/util.js';
 import ParameterWidget from './ParameterWidget.js';
 import logger from '@services/logger.js';
 import i18n from '@services/i18n.js';
-import { usesShellClass, canRateBanner, shouldCreateShell } from '@services/shellPolicy.js';
+import { usesShellClass, canRateBanner, shouldCreateShell, resolveShellClass, formatClassRating } from '@services/shellPolicy.js';
 // <nowiki>
 
 const log = logger.get( 'BannerList' );
@@ -68,31 +68,27 @@ BannerListWidget.prototype.onBannerRemove = function ( banner ) {
 
 BannerListWidget.prototype.syncShellTemplateWithBiographyBanner = function ( biographyBanner ) {
 	biographyBanner = biographyBanner || this.items.find(
-		( banner ) => banner.mainText === 'WikiProject Biography' || banner.redirectTargetMainText === 'WikiProject Biography'
+		( banner ) => ( config.shell.biographyBannerNames || [] ).includes( banner.mainText ) ||
+			( config.shell.biographyBannerNames || [] ).includes( banner.redirectTargetMainText )
 	);
 	if ( !biographyBanner ) {
 		return;
 	}
 
 	// Find shell template using aliases
-	const bannerShellTemplate = this.items.find( ( banner ) => {
-		const mainText = banner.mainText || banner.redirectTargetMainText;
-		return mainText === config.shellTemplate;
-	} );
+	const bannerShellTemplate = this.items.find( ( banner ) => banner.isShellTemplate );
 	if ( !bannerShellTemplate ) {
 		return;
 	}
 
-	const paramsToSync = [
-		{ name: 'living', normalise: true },
-		{ name: 'blpo', normalise: true },
-		{ name: 'activepol', normalise: true },
-		{ name: 'listas', normalise: false }
-	];
+	const paramsToSync = config.shell.biographyParameters || [];
 	paramsToSync.forEach( ( paramToSync ) => {
-		const [ biographyParam, shellParam ] = [ biographyBanner, bannerShellTemplate ].map( ( banner ) => banner.parameterList.getParameterItems()
-			.find( ( parameter ) => parameter.name === paramToSync.name ||
-					banner.paramAliases[ parameter.name ] === paramToSync.name
+		if ( !( bannerShellTemplate.paramData || {} )[ paramToSync.target ] ) {
+			return;
+		}
+		const [ biographyParam, shellParam ] = [ biographyBanner, bannerShellTemplate ].map( ( banner, index ) => banner.parameterList.getParameterItems()
+			.find( ( parameter ) => parameter.name === ( index ? paramToSync.target : paramToSync.source ) ||
+					banner.paramAliases[ parameter.name ] === ( index ? paramToSync.target : paramToSync.source )
 			)
 		);
 		if ( !biographyParam ) {
@@ -108,11 +104,11 @@ BannerListWidget.prototype.syncShellTemplateWithBiographyBanner = function ( bio
 				bannerShellTemplate.parameterList.items.length - 1; // Insert prior to the "add parameter" button
 			bannerShellTemplate.parameterList.addItems( [
 				new ParameterWidget( {
-					name: paramToSync.name,
+					name: paramToSync.target,
 					value: paramSyncValue,
 					autofilled: true
 				},
-				bannerShellTemplate.paramData && bannerShellTemplate.paramData[ paramToSync.name ]
+				bannerShellTemplate.paramData[ paramToSync.target ]
 				)
 			], index );
 		} else if ( !biographyParam.autofilled && paramSyncValue ) {
@@ -122,8 +118,9 @@ BannerListWidget.prototype.syncShellTemplateWithBiographyBanner = function ( bio
 	} );
 };
 
-BannerListWidget.prototype.addShellTemplateIfNeeeded = function () {
-	if ( !shouldCreateShell( this.items.filter( ( banner ) => !banner.isShellTemplate ).length ) || this.shellCreationPromise ) {
+BannerListWidget.prototype.addShellTemplateIfNeeeded = function ( manual ) {
+	const projectCount = this.items.filter( ( banner ) => !banner.isShellTemplate ).length;
+	if ( !projectCount || ( !manual && !shouldCreateShell( projectCount, this.preferences ) ) || this.shellCreationPromise ) {
 		return this;
 	}
 	if (
@@ -132,10 +129,11 @@ BannerListWidget.prototype.addShellTemplateIfNeeeded = function () {
 		this.shellCreationPromise = BannerWidget.newFromTemplateName(
 			config.shellTemplate,
 			{ withoutRatings: true },
-			{ preferences: this.preferences, isArticle: this.pageInfo.isArticle }
+			{ preferences: this.preferences, isArticle: this.pageInfo && this.pageInfo.isArticle }
 		).then( ( shellBannerWidget ) => {
 			this.shellCreationPromise = null;
-			if ( !shouldCreateShell( this.items.filter( ( banner ) => !banner.isShellTemplate ).length ) || this.items.some( ( banner ) => banner.isShellTemplate ) ) {
+			const count = this.items.filter( ( banner ) => !banner.isShellTemplate ).length;
+			if ( !count || ( !manual && !shouldCreateShell( count, this.preferences ) ) || this.items.some( ( banner ) => banner.isShellTemplate ) ) {
 				return;
 			}
 			OO.ui.mixin.GroupElement.prototype.addItems.call( this, [ shellBannerWidget ], 0 );
@@ -143,6 +141,7 @@ BannerListWidget.prototype.addShellTemplateIfNeeeded = function () {
 			// Autofill ratings (if able to)
 			this.autofillClassRatings();
 			this.syncShellTemplateWithBiographyBanner();
+			this.setChanged();
 			// emit updatedSize event
 			this.onUpdatedSize();
 		} ).catch( () => {
@@ -220,11 +219,17 @@ BannerListWidget.prototype.autofillClassRatings = function () {
 		if ( banner.isShellTemplate !== forShell ) {
 			return;
 		}
+		if ( banner.isShellTemplate && banner.originalClassValue && !banner.classChanged ) {
+			return;
+		}
 		if ( !banner.hasClassRatings && !banner.isShellTemplate ) {
 			return;
 		}
 		const classItem = banner.classDropdown.getMenu().findSelectedItem();
 		if ( classItem && classItem.getData() ) {
+			return;
+		}
+		if ( !banner.classDropdown.getMenu().findItemFromData( autoClass ) ) {
 			return;
 		}
 		banner.classDropdown.getMenu().selectItemByData( autoClass );
@@ -261,63 +266,47 @@ BannerListWidget.prototype.setPreferences = function ( prefs ) {
 	this.items.forEach( ( banner ) => banner.setPreferences( prefs ) );
 	this.autofillClassRatings();
 	this.autofillImportanceRatings();
+	this.addShellTemplateIfNeeeded();
 };
 
 BannerListWidget.prototype.makeWikitext = function () {
-	this.updateClassPlacement();
-	this.validateClassPlacement();
-	try {
-		log.info( '[makeWikitext] items=%d', this.items.length );
-	} catch ( _e ) {}
+	const shellTemplate = this.items.find( ( banner ) => banner.isShellTemplate );
+	const classValue = this.validateClassPlacement();
 	const bannersWikitext = filterAndMap(
 		this.items,
 		( banner ) => !banner.isShellTemplate,
-		( banner ) => banner.makeWikitext()
+		( banner ) => banner.makeWikitext( { includeClass: canRateBanner( banner, !!shellTemplate ) } )
 	).join( '\n' );
-	try {
-		log.info( '[makeWikitext] nonShellLen=%d', bannersWikitext.length );
-		log.debug( '[makeWikitext] nonShell sample: %s', bannersWikitext.slice( 0, 200 ) );
-	} catch ( _e ) {}
-	const shellTemplate = this.items.find( ( banner ) => banner.isShellTemplate );
+	log.debug( '[makeWikitext] items=%d, nonShellLen=%d', this.items.length, bannersWikitext.length );
 	if ( !shellTemplate ) {
-		try {
-			log.info( '[makeWikitext] no shell → return nonShell' );
-		} catch ( _e ) {}
 		return bannersWikitext;
 	}
-	const shellParam1 = new ParameterWidget( {
-		name: '1',
-		value: '\n' + bannersWikitext + '\n' +
+	return shellTemplate.makeWikitext( {
+		classValue: usesShellClass() && classValue !== undefined ? classValue : shellTemplate.classDropdown.getValue(),
+		innerContent: '\n' + bannersWikitext + '\n' +
 			( shellTemplate.nonStandardTemplates ? shellTemplate.nonStandardTemplates + '\n' : '' )
 	} );
-	shellTemplate.parameterList.addItems( [ shellParam1 ] );
-	try {
-		const tmpCount = shellTemplate.parameterList.getParameterItems().length;
-		log.debug( '[makeWikitext] temp param added, count=%d', tmpCount );
-	} catch ( _e ) {}
-	try {
-		return shellTemplate.makeWikitext();
-	} finally {
-		shellTemplate.parameterList.removeItems( [ shellParam1 ] );
-	}
 };
 
 BannerListWidget.prototype.validateClassPlacement = function () {
-	if ( !usesShellClass() || !this.items.some( ( banner ) => !banner.isShellTemplate ) ) {
-		return;
-	}
 	const shell = this.items.find( ( banner ) => banner.isShellTemplate );
-	if ( !shell ) {
+	if ( !shell && ( this.shellCreationPromise || shouldCreateShell( this.items.filter( ( banner ) => !banner.isShellTemplate ).length, this.preferences ) ) ) {
+		throw new Error( i18n.t( 'error-shell-required' ) );
+	}
+	if ( !usesShellClass() || !shell ) {
 		return;
 	}
-	const ratings = uniqueArray( this.items.filter( ( banner ) => banner.hasClassRatings || banner.isShellTemplate )
-		.map( ( banner ) => banner.classDropdown.getValue() ).filter( Boolean ) );
-	if ( ratings.length > 1 && !( shell.classChanged && !shell.classDropdown.autofilled ) ) {
-		throw new Error( i18n.t( 'error-conflicting-classes' ) );
+	const result = resolveShellClass( {
+		projectClasses: this.items.filter( ( banner ) => !banner.isShellTemplate && banner.hasClassRatings )
+			.map( ( banner ) => banner.classDropdown.getValue() ),
+		shellClass: shell.classDropdown.getValue() || ( !shell.classChanged && formatClassRating( shell.originalClassValue ) ),
+		hasExplicitClass: !!( shell.classChanged && !shell.classDropdown.autofilled ),
+		allowedClasses: shell.classDropdown.getMenu().getItems().map( ( item ) => item.getData() )
+	} );
+	if ( result.error ) {
+		throw new Error( i18n.t( result.error ) );
 	}
-	if ( ratings.length === 1 && !shell.classDropdown.getValue() && !shell.classChanged ) {
-		shell.classDropdown.getMenu().selectItemByData( ratings[ 0 ] );
-	}
+	return result.value;
 };
 
 BannerListWidget.prototype.updateClassPlacement = function () {

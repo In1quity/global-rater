@@ -48,6 +48,19 @@ function PrefsFormWidget( prefsConfig ) {
 			input: new OO.ui.NumberInputWidget( { min: 1 } ),
 			label: i18n.t( 'prefs-min-params' )
 		},
+		shellCreation: {
+			input: new OO.ui.DropdownInputWidget( {
+				value: 'wiki',
+				options: [
+					{ data: 'wiki', label: i18n.t( 'prefs-shell-wiki' ) },
+					{ data: 'never', label: i18n.t( 'prefs-shell-never' ) },
+					{ data: 'always', label: i18n.t( 'prefs-shell-always' ) },
+					{ data: '2', label: i18n.t( 'prefs-shell-two' ) },
+					{ data: '3', label: i18n.t( 'prefs-shell-three' ) }
+				]
+			} ),
+			label: i18n.t( 'prefs-shell-creation' )
+		},
 		watchlist: {
 			input: new OO.ui.ButtonSelectWidget( {
 				items: [
@@ -93,6 +106,7 @@ function PrefsFormWidget( prefsConfig ) {
 OO.inheritClass( PrefsFormWidget, OO.ui.Widget );
 
 PrefsFormWidget.prototype.setPrefValues = function ( prefs ) {
+	prefs = Object.assign( {}, config.defaultPrefs, prefs );
 	for ( const prefName in prefs ) {
 		const value = prefs[ prefName ];
 		const input = this.preferences[ prefName ] && this.preferences[ prefName ].input;
@@ -101,6 +115,7 @@ PrefsFormWidget.prototype.setPrefValues = function ( prefs ) {
 				input.selectItemByData( value );
 				break;
 			case 'OoUiNumberInputWidget':
+			case 'OoUiDropdownInputWidget':
 			case 'OoUiToggleSwitchWidget':
 				input.setValue( value );
 				break;
@@ -128,6 +143,7 @@ PrefsFormWidget.prototype.getPrefs = function () {
 				value = input.findSelectedItem().getData();
 				break;
 			case 'OoUiToggleSwitchWidget':
+			case 'OoUiDropdownInputWidget':
 				value = input.getValue();
 				break;
 			case 'OoUiNumberInputWidget':

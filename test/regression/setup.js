@@ -4,8 +4,12 @@ import { vi } from 'vitest';
 
 globalThis.$ = window.$ = window.jQuery = $;
 globalThis.OO = window.OO = OO;
-await import('oojs-ui');
-await import('oojs-ui/dist/oojs-ui-wikimediaui.js');
+const oouiPackage = process.env.RATER_TEST_OOUI || 'oojs-ui';
+if (!['oojs-ui', 'oojs-ui-legacy', 'oojs-ui-stable'].includes(oouiPackage)) {
+	throw new Error('Unknown OOUI test package: ' + oouiPackage);
+}
+await import(oouiPackage);
+await import(oouiPackage + '/dist/oojs-ui-wikimediaui.js');
 
 const settings = {
 	wgDBname: 'ruwiki', wgServer: 'https://ru.wikipedia.org', wgUserLanguage: 'en',
@@ -33,6 +37,7 @@ globalThis.mw = {
 };
 window.mw = globalThis.mw;
 globalThis.RATER_I18N_EN = (await import('../../i18n/en.json')).default;
+globalThis.RATER_I18N_RU = (await import('../../i18n/ru.json')).default;
 
 OO.ui.isMobile = () => false;
 OO.ui.theme = new OO.ui.WikimediaUITheme();
