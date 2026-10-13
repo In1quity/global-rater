@@ -9,7 +9,7 @@ const log = logger.get( 'templateData' );
 // Fetch and cache TemplateData for a template title (prefixed or not)
 const getTemplateData = function ( prefixedTitle ) {
 	const title = String( prefixedTitle || '' );
-	const key = title + '-params';
+	const key = title + '-templatedata';
 	const cached = cache.read( key );
 	if ( cached && cached.value && cached.staleDate && !config.forceBypassCache ) {
 		return $.Deferred().resolve( cached.value );
@@ -53,7 +53,7 @@ const getTemplateData = function ( prefixedTitle ) {
 // Includes: paramData, parameterSuggestions, paramAliases, classParamName, importanceParamName, notemplatedata
 const getTemplateDataDetails = function ( prefixedTitle ) {
 	const title = String( prefixedTitle || '' );
-	const key = title + '-params';
+	const key = title + '-params-v2';
 	const cached = cache.read( key );
 	if ( cached && cached.value && cached.staleDate && !config.forceBypassCache ) {
 		return $.Deferred().resolve( cached.value );
@@ -112,11 +112,11 @@ const getTemplateDataDetails = function ( prefixedTitle ) {
 		let importanceName = findByNameOrAlias( 'importance' );
 		if ( !className ) {
 			const keys = Object.keys( result.paramData || {} );
-			className = keys.find( ( k ) => /class/i.test( String( k ).toLowerCase() ) );
+			className = keys.find( ( k ) => /^(?:class|класс|уровень)$/i.test( String( k ) ) );
 		}
 		if ( !importanceName ) {
 			const keys2 = Object.keys( result.paramData || {} );
-			importanceName = keys2.find( ( k ) => /importance/i.test( String( k ).toLowerCase() ) );
+			importanceName = keys2.find( ( k ) => /^(?:importance|важность)$/i.test( String( k ) ) );
 		}
 		result.classParamName = className || 'class';
 		result.importanceParamName = importanceName || 'importance';

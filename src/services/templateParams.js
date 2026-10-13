@@ -11,7 +11,7 @@ const loadParamDataAndSuggestions = function ( template ) {
 		return done.resolve();
 	}
 	const prefixedText = template.redirectTarget ? template.redirectTarget.getPrefixedText() : template.getTitle().getPrefixedText();
-	const cachedInfo = cache.read( prefixedText + '-params' );
+	const cachedInfo = cache.read( prefixedText + '-params-v2' );
 	const rebuildAliases = function () {
 		template.paramAliases = {};
 		$.each( template.paramData, ( paraName, paraData ) => {
@@ -112,7 +112,7 @@ const loadParamDataAndSuggestions = function ( template ) {
 			}
 		} catch ( _e ) { /* ignore */ }
 
-		cache.write( prefixedText + '-params', details, 1 );
+		cache.write( prefixedText + '-params-v2', details, 1 );
 		return true;
 	} ).then( done.resolve, done.reject );
 

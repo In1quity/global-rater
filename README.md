@@ -1,12 +1,67 @@
 # Rater
 
 <a href="https://nodejs.org/en/about/previous-releases"><img src="https://img.shields.io/badge/node-LTS-brightgreen" alt="node LTS support"></a>
-<a href="https://github.com/In1quity/rater/actions/workflows/ci.yml"><img src="https://github.com/In1quity/rater/actions/workflows/ci.yml/badge.svg?branch=master" alt="build status"></a>
+<a href="https://github.com/In1quity/global-rater/actions/workflows/ci.yml"><img src="https://github.com/In1quity/global-rater/actions/workflows/ci.yml/badge.svg?branch=master" alt="build status"></a>
 
-This is the source code for version 3 of the Wikipedia userscript [Rater](https://en.wikipedia.org/wiki/User:Evad37/rater).
+This is the source code for Global Rater, a version 3 fork of the Wikipedia userscript [Rater](https://en.wikipedia.org/wiki/User:Evad37/rater).
 
 ## Installation instructions and user guide
-See [https://en.wikipedia.org/wiki/User:Evad37/rater](https://en.wikipedia.org/wiki/User:Evad37/rater).
+The global loader is published at [User:Iniquity/rater.js on MediaWiki.org](https://www.mediawiki.org/wiki/User:Iniquity/rater.js), and loads [User:Iniquity/rater-core.js](https://www.mediawiki.org/wiki/User:Iniquity/rater-core.js) from that same wiki. Import the loader in your local wiki's common.js:
+
+```javascript
+mw.loader.load( 'https://www.mediawiki.org/w/index.php?title=User:Iniquity/rater.js&action=raw&ctype=text/javascript' );
+```
+
+The upstream [user guide](https://en.wikipedia.org/wiki/User:Evad37/rater) describes the assessment interface; template names and assessment rules can vary by wiki.
+
+## Where Rater looks for data
+
+WikiProject banners are discovered from the categories in `config.categories`, notably `withRatings`. On English Wikipedia this is [Category:WikiProject banners with quality assessment](https://en.wikipedia.org/wiki/Category:WikiProject_banners_with_quality_assessment). Task forces and other parameters come from each banner's [TemplateData](https://en.wikipedia.org/wiki/User:Evad37/rater#TemplateData_quick_tutorial).
+
+For another wiki, define its categories, banner prefixes, shell template and parameter values with `window.RATER_CONFIG`, or supply JSON through `window.RATER_CONFIG_URL`, before loading the script.
+
+## Per-wiki shell and assessment settings
+
+These site settings are merged into the built-in defaults before the interface opens. The wiki is detected from `wgDBname`, with the local server as a fallback; the MediaWiki.org host of the script does not determine the policy.
+
+| Setting | Meaning | Russian Wikipedia default | English Wikipedia default |
+| --- | --- | --- | --- |
+| `shell.autoCreate` | Always create a shell when at least one project is present. | `false` | `true` |
+| `shell.minProjects` | When `autoCreate` is false, create a shell at this project count. `null` disables automatic creation. | `null` | `null` |
+| `shell.classLocation` | `"shell"` stores a shared quality assessment in the shell when one exists, otherwise in individual banners. `"banners"` always stores assessments in individual banners. | `"banners"` | `"shell"` |
+| `shell.classParamName` | Name of the shell's assessment parameter when shell assessments are enabled. Banner parameter names come from TemplateData. | `"уровень"` | `"class"` |
+| `classFormat` | `"arabic"` prefers 1–10, `"roman"` prefers I–X, `"native"` preserves native grades. Letter grades such as FA/B/C are preserved. | `"arabic"` | `"native"` |
+
+For example, the Russian policy can be explicitly configured before importing the global loader:
+
+```javascript
+window.RATER_CONFIG = {
+	shell: {
+		autoCreate: false,
+		minProjects: null,
+		classLocation: 'banners',
+		classParamName: 'уровень'
+	},
+	classFormat: 'arabic'
+};
+```
+
+To automatically group three or more projects, use `autoCreate: false, minProjects: 3`. Existing shells are retained even when automatic creation is disabled, unless removed explicitly in the editor. Changing the class preserves each banner's importance, including values absent from its current TemplateData suggestions. Conflicting individual classes require an explicit shared choice before moving them into a shell.
+
+## Testing a patch and publishing
+
+1. Run `npm ci`, `npm run test:regression`, and `npm run build:dev`.
+2. Copy `dist/rater-core.js` to a sandbox JavaScript page you control on MediaWiki.org (for example, `User:YOUR_USERNAME/rater-core-test.js`).
+3. Copy `dist/rater.js` to your sandbox loader page. Change its `title` constant to the sandbox core page, retaining the MediaWiki.org host.
+4. Import that sandbox loader from your local wiki's common.js and check loading, preview, diff, save, and closing the dialog. Use a test talk page or a sandbox.
+
+Testwiki's upstream examples include WikiProject Africa, Belgium, and China. Additional templates must be imported, included in the configured banner categories, and supplied with working dependencies and TemplateData.
+
+For publication, run `npm run build:prod`, copy `dist/rater-core.js` to `User:Iniquity/rater-core.js` on MediaWiki.org, then copy `dist/rater.js` to `User:Iniquity/rater.js`. Publishing requires edit access to those pages. The global build uses `rater-core.js`; the upstream `rater.min.js` deployment instructions refer to its older build system.
+
+The inherited [application diagram](architecture_main.svg) and [OOUI diagram](architecture_ooui.svg) describe upstream Rater v2. The current fork's modules are listed below; its loading dialog uses Vue/Codex.
+
+The regression suite uses real jQuery and OOUI to check dialog actions, assessment policies, TemplateData caching, and wikitext edits. The older `npm run test:run` suite also remains available; it had 23 failing files before this synchronization, mostly importing the removed `src/utils/Template.js` and using incomplete widget mocks.
 
 ## 🏗️ Project Structure
 
@@ -34,13 +89,14 @@ The project uses a modern, scalable architecture with clear separation of concer
 │   │   ├── cache.js                # Caching service
 │   │   ├── windowManager.js        # Window management
 │   │   ├── i18n.js                 # Internationalization
-│   │   ├── getBanners.js           # Banner retrieval
+│   │   ├── collectBannersFromCategory.js # Banner retrieval
 │   │   ├── setup.js                # Application setup
 │   │   ├── autostart.js            # Auto-start logic
 │   │   ├── prefs.js                # Preferences management
 │   │   └── index.js                # Barrel exports (used in App.js)
 │   ├── utils/              # Utility Functions
-│   │   ├── Template.js             # Template utilities
+│   │   ├── parseTemplates.js       # Template parsing
+│   │   ├── models/TemplateModel.js # Template data model
 │   │   └── util.js                 # General utilities
 │   ├── constants/          # Configuration & Constants
 │   │   ├── config.js               # Application configuration
@@ -87,7 +143,7 @@ import MainWindow from '@components/MainWindow.js';
 
 The source code is bundled, transpiled, and minified using `npm run build`. This creates:
 
-- **`dist/rater.js`** - Main entry point, loader script (2.72 kB)
+- **`dist/rater.js`** - Main entry point, loader script
   - Creates a portlet button that lazy-loads the main application on demand
   - Only loads `mediawiki.util` at startup; other modules are loaded when the button is clicked
 - **`dist/rater-core.js`** - Main application bundle

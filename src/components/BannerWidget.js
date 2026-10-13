@@ -12,6 +12,7 @@ import { addMissingParams } from '@services/autofill.js';
 import { getWithRedirectTo } from '@services/templateRedirects.js';
 import HorizontalLayoutWidget from './HorizontalLayoutWidget.js';
 import globalConfig from '@constants/config.js';
+import { canRateBanner, isClassParameter, usesShellClass, formatClassRating } from '@services/shellPolicy.js';
 // <nowiki>
 
 // Helpers
@@ -59,10 +60,17 @@ function BannerWidget( template, config ) {
 	this.mainText = template.getTitle().getMainText();
 	this.redirectTargetMainText = template.redirectTarget && template.redirectTarget.getMainText();
 	this.isShellTemplate = isShellTemplate( template );
+	if ( this.isShellTemplate ) {
+		this.classParamName = globalConfig.shell.classParamName || 'class';
+	}
 	this.changed = template.parameters.some( ( parameter ) => parameter.autofilled ); // initially false, unless some parameters were autofilled
 	this.hasClassRatings = template.classes && template.classes.length;
 	this.hasImportanceRatings = template.importances && template.importances.length;
 	this.inactiveProject = template.inactiveProject;
+	const originalClassParam = template.parameters.find( ( parameter ) => isClassParameter( this, parameter.name ) );
+	const originalImportanceParam = template.parameters.find( ( parameter ) => isNameOrAliasOf( parameter.name, String( this.importanceParamName ).toLowerCase(), this.paramAliases ) );
+	this.originalClassValue = originalClassParam && originalClassParam.value;
+	this.originalImportanceValue = originalImportanceParam && originalImportanceParam.value;
 
 	/* --- TITLE AND RATINGS --- */
 
@@ -111,7 +119,7 @@ function BannerWidget( template, config ) {
 						data: null,
 						label: new OO.ui.HtmlSnippet( `<span class="rater-bannerWidget-labelMuted">(${ config.isArticle ? i18n.t( 'option-no-class' ) : i18n.t( 'option-auto-detect' ) })</span>` )
 					} ),
-					...globalConfig.bannerDefaults.classes.map( ( classname ) => new OO.ui.MenuOptionWidget( {
+					...Array.from( new Set( globalConfig.bannerDefaults.classes.map( formatClassRating ) ) ).map( ( classname ) => new OO.ui.MenuOptionWidget( {
 						data: classname,
 						label: classname
 					} )
@@ -120,8 +128,7 @@ function BannerWidget( template, config ) {
 			},
 			$overlay: this.$overlay
 		} );
-		const shellClassParam = template.parameters.find( ( parameter ) => isNameOrAliasOf( parameter.name, String( template.classParamName || 'class' ).toLowerCase(), template.paramAliases ) );
-		this.classDropdown.getMenu().selectItemByData( shellClassParam && classMask( shellClassParam.value ) );
+		this.classDropdown.getMenu().selectItemByData( formatClassRating( classMask( this.originalClassValue ) ) );
 	} else if ( this.hasClassRatings ) {
 		// selectInitialValue helper is defined above
 		this.classDropdown = new DropdownParameterWidget( {
@@ -130,9 +137,9 @@ function BannerWidget( template, config ) {
 				items: [
 					new OO.ui.MenuOptionWidget( {
 						data: null,
-						label: new OO.ui.HtmlSnippet( `<span class="rater-bannerWidget-labelMuted">(${ config.isArticle ? i18n.t( 'option-inherit-from-shell' ) : i18n.t( 'option-auto-detect' ) })</span>` )
+						label: new OO.ui.HtmlSnippet( `<span class="rater-bannerWidget-labelMuted">(${ config.isArticle ? i18n.t( usesShellClass() ? 'option-inherit-from-shell' : 'option-no-class' ) : i18n.t( 'option-auto-detect' ) })</span>` )
 					} ),
-					...template.classes.map( ( classname ) => new OO.ui.MenuOptionWidget( {
+					...Array.from( new Set( template.classes.map( formatClassRating ) ) ).map( ( classname ) => new OO.ui.MenuOptionWidget( {
 						data: classname,
 						label: classname
 					} )
@@ -142,7 +149,10 @@ function BannerWidget( template, config ) {
 			$overlay: this.$overlay
 		} );
 		const classParam = template.parameters.find( ( parameter ) => isNameOrAliasOf( parameter.name, String( template.classParamName || 'class' ).toLowerCase(), template.paramAliases ) );
-		const preClass = selectInitialValue( template.classes, classParam && classParam.value, classMask );
+		const preClass = formatClassRating( selectInitialValue( template.classes, classParam && classParam.value, classMask ) );
+		if ( preClass && !template.classes.map( formatClassRating ).includes( preClass ) ) {
+			this.classDropdown.getMenu().addItems( [ new OO.ui.MenuOptionWidget( { data: preClass, label: preClass } ) ] );
+		}
 		this.classDropdown.getMenu().selectItemByData( preClass );
 	}
 
@@ -165,6 +175,9 @@ function BannerWidget( template, config ) {
 		} );
 		const importanceParam = template.parameters.find( ( parameter ) => isNameOrAliasOf( parameter.name, String( template.importanceParamName || 'importance' ).toLowerCase(), template.paramAliases ) );
 		const preImp = selectInitialValue( template.importances, importanceParam && importanceParam.value, importanceMask );
+		if ( preImp && !template.importances.includes( preImp ) ) {
+			this.importanceDropdown.getMenu().addItems( [ new OO.ui.MenuOptionWidget( { data: preImp, label: preImp } ) ] );
+		}
 		this.importanceDropdown.getMenu().selectItemByData( preImp );
 	}
 
@@ -173,6 +186,7 @@ function BannerWidget( template, config ) {
 	} );
 	if ( this.hasClassRatings || this.isShellTemplate ) {
 		this.titleLayout.addItems( [ this.classDropdown ] );
+		this.classDropdown.toggle( canRateBanner( this ) );
 	}
 	if ( this.hasImportanceRatings ) {
 		this.titleLayout.addItems( [ this.importanceDropdown ] );
@@ -188,11 +202,12 @@ function BannerWidget( template, config ) {
 					this.shellParam1Value = param.value;
 					return false;
 				}
-				return !isNameOrAliasOf( param.name, String( template.classParamName || 'class' ).toLowerCase(), template.paramAliases );
+				return !isClassParameter( this, param.name );
 			}
 			const classCanon = String( template.classParamName || 'class' ).toLowerCase();
 			const impCanon = String( template.importanceParamName || 'importance' ).toLowerCase();
-			return !( isNameOrAliasOf( param.name, classCanon, template.paramAliases ) || isNameOrAliasOf( param.name, impCanon, template.paramAliases ) );
+			return !( ( this.hasClassRatings && isNameOrAliasOf( param.name, classCanon, template.paramAliases ) ) ||
+				( this.hasImportanceRatings && isNameOrAliasOf( param.name, impCanon, template.paramAliases ) ) );
 		},
 		( param ) => new ParameterWidget( param, template.paramData[ param.name ], { $overlay: this.$overlay } )
 	);
@@ -268,7 +283,7 @@ function BannerWidget( template, config ) {
 
 	/* --- EVENT HANDLING --- */
 
-	if ( this.hasClassRatings ) {
+	if ( this.hasClassRatings || this.isShellTemplate ) {
 		this.classDropdown.connect( this, { change: 'onClassChange' } );
 	}
 	if ( this.hasImportanceRatings ) {
@@ -316,10 +331,9 @@ BannerWidget.newFromTemplateName = function ( templateName, data, config ) {
 		template.withoutRatings = true;
 	}
 	return getWithRedirectTo( template )
-		.then( ( resolvedTemplate ) => $.when(
-			loadParamDataAndSuggestions( resolvedTemplate ),
-			loadRatings( resolvedTemplate )
-		).then( () => addMissingParams( resolvedTemplate ) ) )
+		.then( ( resolvedTemplate ) => loadParamDataAndSuggestions( resolvedTemplate )
+			.then( () => loadRatings( resolvedTemplate ) )
+			.then( () => addMissingParams( resolvedTemplate ) ) )
 		.then( ( finalTemplate ) => new BannerWidget( finalTemplate, config ) );
 };
 
@@ -370,8 +384,8 @@ BannerWidget.prototype.showAddParameterInputs = function () {
 
 BannerWidget.prototype.getAddParametersInfo = function ( nameInputVal, valueInputVal ) {
 	const name = nameInputVal && nameInputVal.trim() || this.addParameterNameInput.getValue().trim();
-	const paramAlreadyIncluded = name === 'class' ||
-		name === 'importance' ||
+	const paramAlreadyIncluded = isClassParameter( this, name ) ||
+		isNameOrAliasOf( name, String( this.importanceParamName ).toLowerCase(), this.paramAliases ) ||
 		( name === '1' && this.isShellTemplate ) ||
 		this.parameterList.getParameterItems().some( ( paramWidget ) => paramWidget.name === name );
 	const value = valueInputVal && valueInputVal.trim() || this.addParameterValueInput.getValue().trim();
@@ -466,12 +480,15 @@ BannerWidget.prototype.onClearButtonClick = function () {
 	this.parameterList.clearItems(
 		this.parameterList.getParameterItems()
 	);
-	if ( this.hasClassRatings ) {
+	if ( this.hasClassRatings || this.isShellTemplate ) {
 		this.classDropdown.getMenu().selectItem();
+		this.classChanged = true;
 	}
 	if ( this.hasImportanceRatings ) {
 		this.importanceDropdown.getMenu().selectItem();
+		this.importanceChanged = true;
 	}
+	this.setChanged();
 };
 
 BannerWidget.prototype.bypassRedirect = function () {
@@ -493,21 +510,24 @@ BannerWidget.prototype.makeWikitext = function () {
 	// For non-shell banners, if nothing changed and original wikitext is available, reuse it.
 	// For shell banner we must always render from current state so that temporary param1 (inner content)
 	// added by BannerListWidget.makeWikitext is respected.
-	if ( !this.isShellTemplate && !this.changed && this.wikitext ) {
+	const includeClass = canRateBanner( this );
+	if ( includeClass && !this.isShellTemplate && !this.changed && this.wikitext && formatClassRating( this.originalClassValue ) === this.originalClassValue ) {
 		return this.wikitext;
 	}
 	const pipe = this.pipeStyle || '|';
 	const equals = this.equalsStyle || '=';
 	const classItem = ( this.hasClassRatings || this.isShellTemplate ) && this.classDropdown.getMenu().findSelectedItem();
-	const classVal = classItem && classItem.getData();
+	const classVal = formatClassRating( classItem && classItem.getData() );
 	const importanceItem = this.hasImportanceRatings && this.importanceDropdown.getMenu().findSelectedItem();
-	const importanceVal = importanceItem && importanceItem.getData();
+	const importanceVal = !this.importanceChanged && this.originalImportanceValue ? this.originalImportanceValue : importanceItem && importanceItem.getData();
 
 	return ( '{{' +
 		this.name +
-		( ( this.hasClassRatings || this.isShellTemplate ) && classVal !== null ? `${ pipe }${ this.classParamName || 'class' }${ equals }${ classVal || '' }` : '' ) +
+		( includeClass && ( this.hasClassRatings || this.isShellTemplate ) && classVal ? `${ pipe }${ this.classParamName || 'class' }${ equals }${ classVal }` : '' ) +
 		( this.hasImportanceRatings && importanceVal !== null ? `${ pipe }${ this.importanceParamName || 'importance' }${ equals }${ importanceVal || '' }` : '' ) +
 		this.parameterList.getParameterItems()
+			.filter( ( parameter ) => !( isClassParameter( this, parameter.name ) &&
+				( !includeClass || this.hasClassRatings || this.isShellTemplate ) ) )
 			.map( ( parameter ) => {
 				if ( this.isShellTemplate && String( parameter.name ) === '1' ) {
 					// Render shell inner content as positional parameter (no "1=")

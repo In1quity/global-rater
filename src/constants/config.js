@@ -1,5 +1,8 @@
 // <nowiki>
 const version = ( typeof RATER_VERSION !== 'undefined' ) ? RATER_VERSION : '0.0.0';
+const wikiDbName = mw.config.get( 'wgDBname' );
+const isRussianWiki = wikiDbName ? wikiDbName === 'ruwiki' :
+	/^(?:https?:)?\/\/ru\.wikipedia\.org$/.test( mw.config.get( 'wgServer' ) || '' );
 
 // A global object that stores all the page and user configuration and settings
 const config = {
@@ -21,7 +24,6 @@ const config = {
 		autostart: false,
 		autostartRedirects: false,
 		autostartNamespaces: [ 0 ],
-		minForShell: 1,
 		bypassRedirects: true,
 		autofillClassFromOthers: true,
 		autofillClassFromOres: true,
@@ -170,7 +172,15 @@ const config = {
 		'WikiProject '
 	],
 	// Main shell template name - aliases will be fetched via API
-	shellTemplate: 'WikiProject banner shell',
+	shellTemplate: isRussianWiki ? 'Блок проектов статьи' : 'WikiProject banner shell',
+	// Per-wiki assessment policy, overridable through RATER_CONFIG/RATER_CONFIG_URL.
+	shell: {
+		autoCreate: !isRussianWiki,
+		minProjects: null,
+		classLocation: isRussianWiki ? 'banners' : 'shell',
+		classParamName: isRussianWiki ? 'уровень' : 'class'
+	},
+	classFormat: isRussianWiki ? 'arabic' : 'native',
 	defaultParameterData: {
 		auto: {
 			label: {
@@ -235,6 +245,11 @@ const config = {
 		}
 	}
 };
+
+if ( isRussianWiki ) {
+	config.bannerDefaults.classes = [ 'I', 'II', 'III', 'IV', 'ИС', 'ХС', 'ДС', 'ИСП', 'список' ];
+	config.bannerDefaults.importances = [ 'высшая', 'высокая', 'средняя', 'низкая' ];
+}
 
 /**
  * Deep-merge helper for external config overrides

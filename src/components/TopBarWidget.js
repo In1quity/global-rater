@@ -2,6 +2,7 @@ import config from '@constants/config.js';
 import i18n from '@services/i18n.js';
 import SuggestionLookupTextInputWidget from './SuggestionLookupTextInputWidget.js';
 import { buildBannerSuggestions } from '@services/autofill.js';
+import { formatClassRating } from '@services/shellPolicy.js';
 // <nowiki>
 
 // Helper function to remove the first matching prefix from banner name
@@ -67,7 +68,7 @@ function TopBarWidget( opts ) {
 					data: { class: null },
 					label: new OO.ui.HtmlSnippet( '<span class="rater-bannerWidget-labelMuted">(' + i18n.t( 'topbar-no-class' ) + ')</span>' )
 				} ),
-				...config.bannerDefaults.classes.map( ( classname ) => new OO.ui.MenuOptionWidget( {
+				...Array.from( new Set( config.bannerDefaults.classes.map( formatClassRating ) ) ).map( ( classname ) => new OO.ui.MenuOptionWidget( {
 					data: { class: classname },
 					label: classname
 				} )
