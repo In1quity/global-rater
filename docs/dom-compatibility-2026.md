@@ -32,6 +32,7 @@ These are script defects; the audit did not establish that they were introduced 
 - Body drag listeners survived teardown and accumulated on reopening. Each setup now replaces the previous handlers, and teardown removes them.
 - Duplicate-project alerts referenced a nonexistent search box and called focus before dismissal. Refocus the actual search box after the alert resolves.
 - Compare API table rows were parsed inside a `div`, which discards row/cell markup. Parse them inside a table before displaying the diff.
+- Minification emitted literal C0 control characters used as parser markers. A published wiki copy replaced such a character with the replacement character `�`, so the marker no longer matched the parser's escape-based regexp. Escape these characters in the generated JavaScript before publication; their runtime values remain unchanged.
 
 The DRY/KISS fixes also give TemplateData processing one cache-aware path and move wikitext formatting into a pure serializer. Shared-class validation returns a value without changing widgets and rejects incompatible migrations instead of silently discarding an assessment.
 
@@ -40,6 +41,8 @@ The DRY/KISS fixes also give TemplateData processing one cache-aware path and mo
 `npm run test:ooui` runs the regression suite in separate processes against OOUI 0.53.0 (the baseline before this window), 0.53.2 and 0.54.2. Production still obtains OOUI from MediaWiki ResourceLoader; the additional packages are test dependencies only. CI runs the same matrix.
 
 Tests cover preservation of assessments and importance, unsupported shared classes, cold/warm caches, serialization without resize events, discard/cancel/error pending states, duplicate alerts, drag-handler cleanup, preview wrappers, diff rows, portlet fallback and raw URL variants. Lint and development/production builds are also required.
+
+The suite additionally exercises the real WindowManager open/close lifecycle, including the close button, cancelling and accepting a real confirmation, and reopening. Publication tests check that parser markers survive copying through a text system that replaces literal control characters. All 54 tests pass on each of the three OOUI versions above.
 
 The inherited `npm run test:run` suite still has 23 failing files: 22 import the removed `src/utils/Template.js`, and one uses an incomplete widget mock. Its failure counts match the PR #2 baseline. The regression suite runs independently with real OOUI.
 
