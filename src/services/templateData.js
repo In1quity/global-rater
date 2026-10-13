@@ -2,16 +2,24 @@ import * as cache from '@services/cache.js';
 import API from '@services/api.js';
 import config from '@constants/config.js';
 import logger from '@services/logger.js';
+import i18n from '@services/i18n.js';
 // <nowiki>
 
 const log = logger.get( 'templateData' );
+
+const makeFallbackTemplateData = () => ( {
+	notemplatedata: true,
+	params: config.defaultParameterData,
+	paramOrder: Object.keys( config.defaultParameterData ),
+	paramAliases: {}
+} );
 
 // Fetch and cache TemplateData for a template title (prefixed or not)
 const getTemplateData = function ( prefixedTitle ) {
 	const title = String( prefixedTitle || '' );
 	const key = title + '-templatedata';
 	const cached = cache.read( key );
-	if ( cached && cached.value && cached.staleDate && !config.forceBypassCache ) {
+	if ( cached && cached.value && !cached.value.notemplatedata && cached.staleDate && !config.forceBypassCache ) {
 		return $.Deferred().resolve( cached.value );
 	}
 	return API.get( {
@@ -39,23 +47,23 @@ const getTemplateData = function ( prefixedTitle ) {
 		} catch ( _e ) { /* ignore */ }
 
 		if ( !page || page.notemplatedata || !page.params ) {
-			return $.Deferred().resolve( { notemplatedata: true, params: config.defaultParameterData, paramOrder: [], paramAliases: {} } );
+			return makeFallbackTemplateData();
 		}
 		const params = page.params || {};
 		const paramOrder = page.paramOrder || Object.keys( params );
 		const value = { notemplatedata: false, params, paramOrder };
 		cache.write( key, value, 1 );
 		return value;
-	} ).catch( () => ( { notemplatedata: true, params: config.defaultParameterData, paramOrder: [], paramAliases: {} } ) );
+	} ).catch( makeFallbackTemplateData );
 };
 
-// High-level helper that returns fully processed TD payload for Template.js
+// High-level helper that returns fully processed metadata for banner models
 // Includes: paramData, parameterSuggestions, paramAliases, classParamName, importanceParamName, notemplatedata
 const getTemplateDataDetails = function ( prefixedTitle ) {
 	const title = String( prefixedTitle || '' );
-	const key = title + '-params-v2';
+	const key = title + '-params-v3-' + JSON.stringify( config.assessmentParameters ) + '-' + i18n.getLangCode();
 	const cached = cache.read( key );
-	if ( cached && cached.value && cached.staleDate && !config.forceBypassCache ) {
+	if ( cached && cached.value && !cached.value.notemplatedata && cached.staleDate && !config.forceBypassCache ) {
 		return $.Deferred().resolve( cached.value );
 	}
 	return getTemplateData( title ).then( ( base ) => {
@@ -64,8 +72,8 @@ const getTemplateDataDetails = function ( prefixedTitle ) {
 			paramData: ( base && base.params ) || ( config && config.defaultParameterData ) || {},
 			parameterSuggestions: [],
 			paramAliases: {},
-			classParamName: 'class',
-			importanceParamName: 'importance'
+			classParamName: config.bannerDefaults.classParamName,
+			importanceParamName: config.bannerDefaults.importanceParamName
 		};
 		// Build aliases map from paramData
 		$.each( result.paramData, ( paraName, paraData ) => {
@@ -75,10 +83,11 @@ const getTemplateDataDetails = function ( prefixedTitle ) {
 				} );
 			}
 			// Try to extract allowed values from description when not provided explicitly
-			if ( paraData && paraData.description && /\[.*'.+?'.*?\]/.test( paraData.description.en ) ) {
+			const description = paraData && Object.values( paraData.description || {} ).find( ( text ) => /\[.*'.+?'.*?\]/.test( text ) );
+			if ( paraData && !paraData.allowedValues && description ) {
 				try {
 					const allowedVals = JSON.parse(
-						paraData.description.en
+						description
 							.replace( /^.*\[/, '[' )
 							.replace( /"/g, '\\"' )
 							.replace( /'/g, '"' )
@@ -108,33 +117,28 @@ const getTemplateDataDetails = function ( prefixedTitle ) {
 			}
 			return null;
 		};
-		let className = findByNameOrAlias( 'class' );
-		let importanceName = findByNameOrAlias( 'importance' );
-		if ( !className ) {
-			const keys = Object.keys( result.paramData || {} );
-			className = keys.find( ( k ) => /^(?:class|класс|уровень)$/i.test( String( k ) ) );
-		}
-		if ( !importanceName ) {
-			const keys2 = Object.keys( result.paramData || {} );
-			importanceName = keys2.find( ( k ) => /^(?:importance|важность)$/i.test( String( k ) ) );
-		}
-		result.classParamName = className || 'class';
-		result.importanceParamName = importanceName || 'importance';
+		result.classParamName = config.assessmentParameters.class.map( findByNameOrAlias ).find( Boolean ) || config.bannerDefaults.classParamName;
+		result.importanceParamName = config.assessmentParameters.importance.map( findByNameOrAlias ).find( Boolean ) || config.bannerDefaults.importanceParamName;
 
 		// Build suggestions list using paramOrder if present
 		const order = ( base && base.paramOrder ) || Object.keys( result.paramData );
-		const filtered = order.filter( ( name ) => ( name && name !== 'class' && name !== 'importance' ) );
+		const filtered = order.filter( ( name ) => name &&
+			( result.paramAliases[ name ] || name ) !== result.classParamName &&
+			( result.paramAliases[ name ] || name ) !== result.importanceParamName );
 		result.parameterSuggestions = filtered.map( ( paramName ) => {
 			const optionObject = { data: paramName };
 			const pd = result.paramData[ paramName ];
-			const label = pd && pd.label && pd.label.en;
+			const label = i18n.metadataText( pd, 'label' );
 			if ( label ) {
 				optionObject.label = label + ' (|' + paramName + '=)';
 			}
 			return optionObject;
 		} );
 
-		cache.write( key, result, 1 );
+		// Fallback schemas depend on wiki configuration and must not outlive it in storage.
+		if ( !result.notemplatedata ) {
+			cache.write( key, result, 1 );
+		}
 		return result;
 	} );
 };

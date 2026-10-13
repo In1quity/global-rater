@@ -14,7 +14,7 @@ const dlog = function () {
 };
 
 const cacheBanners = function ( banners ) {
-	cache.write( 'banners', banners, 2, 60 );
+	cache.write( 'banners', { source: config.categories, banners }, 2, 60 );
 };
 
 /**
@@ -29,7 +29,7 @@ const getListOfBannersFromApi = function () {
 		dlog( 'Start getListOfBannersFromApi' );
 	} catch ( e ) { /* ignore */ }
 
-	// Localized Template namespace name (e.g., "Template", "Шаблон")
+	// Template namespace is supplied by the current wiki.
 	const templateNsName = ( config.mw && config.mw.wgFormattedNamespaces && ( config.mw.wgFormattedNamespaces[ 10 ] || 'Template' ) ) || 'Template';
 	try {
 		dlog( 'Using template NS:', templateNsName );
@@ -88,7 +88,6 @@ const getListOfBannersFromApi = function () {
 						title = stripNamespacePrefix( title, [ templateNsName, 'Template' ] );
 						outTitles.push( normalizeTemplateName( title ) );
 					} else if ( m && m.ns === 14 && !seen[ title ] ) {
-						seen[ title ] = true;
 						queue.push( title );
 					}
 				} );
@@ -166,6 +165,8 @@ const getBannersFromCache = function () {
 	if (
 		!cachedBanners ||
 		!cachedBanners.value ||
+		!cachedBanners.value.banners ||
+		JSON.stringify( cachedBanners.value.source ) !== JSON.stringify( config.categories ) ||
 		!cachedBanners.staleDate
 	) {
 		try {
@@ -183,7 +184,7 @@ const getBannersFromCache = function () {
 	try {
 		dlog( 'Cache hit: banners' );
 		// Also print cached groups and items for debugging
-		const b = ( cachedBanners && cachedBanners.value ) || {};
+		const b = cachedBanners.value.banners;
 		const groups = [ 'withRatings', 'withoutRatings', 'wrappers', 'notWPBM', 'inactive', 'wir' ];
 		groups.forEach( ( k ) => {
 			const arr = b[ k ] || [];
@@ -191,7 +192,7 @@ const getBannersFromCache = function () {
 			arr.forEach( ( t, i ) => log.debug( '  %d. %s', i + 1, t ) );
 		} );
 	} catch ( e ) { /* ignore */ }
-	return $.Deferred().resolve( cachedBanners.value );
+	return $.Deferred().resolve( cachedBanners.value.banners );
 };
 
 /**

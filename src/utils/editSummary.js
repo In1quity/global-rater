@@ -1,4 +1,5 @@
 // <nowiki>
+import i18n from '@services/i18n.js';
 
 // Build edit summary string based on provided banner changes and overall ratings
 // Params:
@@ -30,7 +31,7 @@ const buildEditSummary = function ( params ) {
 	}
 
 	const body = [ ...edited, ...added, ...removed ].join( ', ' );
-	return `${ labels.assessment || 'Assessment' }${ overall }: ${ body }${ advert }`;
+	return `${ labels.assessment || i18n.t( 'summary-assessment' ) }${ overall }: ${ body }${ advert }`;
 };
 
 export { buildEditSummary };

@@ -1,6 +1,7 @@
 import $ from 'jquery';
 import OO from 'oojs';
 import { vi } from 'vitest';
+import { readJsonDirectory } from '../../scripts/localization-data.js';
 
 globalThis.$ = window.$ = window.jQuery = $;
 globalThis.OO = window.OO = OO;
@@ -36,8 +37,8 @@ globalThis.mw = {
 	widgets: { NamespacesMultiselectWidget: OO.ui.MenuTagMultiselectWidget }
 };
 window.mw = globalThis.mw;
-globalThis.RATER_I18N_EN = (await import('../../i18n/en.json')).default;
-globalThis.RATER_I18N_RU = (await import('../../i18n/ru.json')).default;
+globalThis.RATER_I18N_DICTIONARIES = readJsonDirectory('i18n');
+globalThis.RATER_WIKI_CONFIGS = readJsonDirectory('rater/data');
 
 OO.ui.isMobile = () => false;
 OO.ui.theme = new OO.ui.WikimediaUITheme();

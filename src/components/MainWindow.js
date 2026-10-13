@@ -18,6 +18,7 @@ import i18n from '@services/i18n.js';
 import logger from '@services/logger.js';
 import { canRateBanner, usesShellClass, formatClassRating } from '@services/shellPolicy.js';
 import { isShellTemplateName } from '@services/templateShell.js';
+import { stripSubstitutionPrefix } from '@utils/wikitext.js';
 const log = logger.get( 'MainWindow' );
 // <nowiki>
 
@@ -28,22 +29,24 @@ const createActionProcess = function ( run ) {
 };
 
 function MainWindow( windowConfig ) {
+	MainWindow.static.title = makeWindowTitle();
+	MainWindow.static.actions = createActions();
 	MainWindow.super.call( this, windowConfig );
 }
 OO.inheritClass( MainWindow, OO.ui.ProcessDialog );
 
 MainWindow.static.name = 'main';
-MainWindow.static.title = ( () => {
+function makeWindowTitle() {
 	const titleSpan = document.createElement( 'span' );
 	const raterLink = document.createElement( 'a' );
-	raterLink.href = mw.util.getUrl( 'WP:RATER' );
+	raterLink.href = mw.util.getUrl( config.script.titlePage );
 	raterLink.target = '_blank';
 	raterLink.className = 'rater-mainWindow-titleLink';
-	raterLink.textContent = 'Rater';
+	raterLink.textContent = i18n.t( 'app-portlet-text' );
 	const talkLink = document.createElement( 'a' );
-	talkLink.href = mw.util.getUrl( 'WT:RATER' );
+	talkLink.href = mw.util.getUrl( config.script.talkPage );
 	talkLink.target = '_blank';
-	talkLink.textContent = 'talk';
+	talkLink.textContent = i18n.t( 'title-talk' );
 	const versionSpan = document.createElement( 'span' );
 	versionSpan.className = 'rater-mainWindow-titleVersion';
 	versionSpan.textContent = 'v' + config.script.version;
@@ -53,12 +56,13 @@ MainWindow.static.title = ( () => {
 	titleSpan.appendChild( document.createTextNode( ') ' ) );
 	titleSpan.appendChild( versionSpan );
 	return $( titleSpan );
-} )();
+}
+MainWindow.static.title = makeWindowTitle();
 MainWindow.static.size = 'large';
 // Function to create actions with optional localization
-function createActions( useI18n ) {
-	const t = useI18n ? i18n.t : ( key ) => key;
-	const getLabel = ( key ) => useI18n ? new OO.ui.HtmlSnippet( "<span style='padding:0 1em;'>" + i18n.t( key ) + '</span>' ) : key;
+function createActions() {
+	const t = i18n.t;
+	const getLabel = ( key ) => new OO.ui.HtmlSnippet( "<span style='padding:0 1em;'>" + i18n.t( key ) + '</span>' );
 
 	return [
 		// Primary (top right):
@@ -80,7 +84,7 @@ function createActions( useI18n ) {
 		{
 			action: 'save',
 			accessKey: 's',
-			label: useI18n ? getLabel( 'action-save' ) : 'Save',
+			label: getLabel( 'action-save' ),
 			flags: [ 'primary', 'progressive' ],
 			modes: [ 'edit', 'diff', 'preview' ] // available when current mode isn't "prefs"
 		},
@@ -118,11 +122,7 @@ function createActions( useI18n ) {
 	];
 }
 
-// Initialize with English fallback (identity) then update after i18n loads
-MainWindow.static.actions = createActions( false );
-i18n.load().then( () => {
-	MainWindow.static.actions = createActions( true );
-} );
+MainWindow.static.actions = createActions();
 
 // Customize the initialize() function: This is where to add content to the dialog body and set up event handlers.
 MainWindow.prototype.initialize = function () {
@@ -146,8 +146,8 @@ MainWindow.prototype.initialize = function () {
 	oresLink.target = '_blank';
 	const oresImg = document.createElement( 'img' );
 	oresImg.src = 'https://upload.wikimedia.org/wikipedia/commons/5/51/Objective_Revision_Evaluation_Service_logo.svg';
-	oresImg.title = 'Machine predicted quality from ORES';
-	oresImg.alt = 'ORES logo';
+	oresImg.title = i18n.t( 'ores-image-title' );
+	oresImg.alt = i18n.t( 'ores-image-alt' );
 	oresImg.width = '20';
 	oresImg.height = '20';
 	oresImg.className = 'rater-mainWindow-oresImg';
@@ -256,7 +256,7 @@ MainWindow.prototype.initialize = function () {
 
 MainWindow.prototype.onBannerListUpdateSize = function () {
 	if ( this.topBar && this.topBar.setShellAvailable ) {
-		this.topBar.setShellAvailable( this.bannerList.items.some( ( banner ) => !banner.isShellTemplate ) &&
+		this.topBar.setShellAvailable( !!config.shellTemplate && this.bannerList.items.some( ( banner ) => !banner.isShellTemplate ) &&
 			!this.bannerList.items.some( ( banner ) => banner.isShellTemplate ) && !this.bannerList.shellCreationPromise );
 	}
 	// Get the current scroll amount
@@ -379,7 +379,7 @@ MainWindow.prototype.getSetupProcess = function ( data ) {
 			// Set up edit mode banners
 			this.actions.setMode( 'edit' );
 			this.bannerList.oresClass = ( data.isArticle && data.isList ) ?
-				'List' :
+				config.bannerDefaults.listClass :
 				data.ores && data.ores.prediction;
 			this.bannerList.pageInfo = this.pageInfo;
 
@@ -479,7 +479,7 @@ MainWindow.prototype.getSetupProcess = function ( data ) {
 			} else if ( this.pageInfo.isArticle ) {
 				this.pagetypeLabel.setLabel( i18n.t( 'label-article-page' ) ).toggle( true );
 			} else {
-				this.pagetypeLabel.setLabel( this.subjectPage.getNamespacePrefix().slice( 0, -1 ) + ' page' ).toggle( true );
+				this.pagetypeLabel.setLabel( i18n.t( 'label-namespace-page', null, { namespace: this.subjectPage.getNamespacePrefix().slice( 0, -1 ) } ) ).toggle( true );
 			}
 			// Set props for use in making wikitext and edit summaries
 			this.talkWikitext = data.talkWikitext;
@@ -753,7 +753,7 @@ MainWindow.prototype.onSearchSelect = function ( data ) {
 	// Abort and show alert if banner already exists
 	if ( existingBanner ) {
 		this.topBar.searchBox.popPending();
-		return OO.ui.alert( 'There is already a {{' + name + '}} banner' ).then( () => this.topBar.searchBox.focus() );
+		return OO.ui.alert( i18n.t( 'alert-banner-existing', null, { name } ) ).then( () => this.topBar.searchBox.focus() );
 	}
 
 	// Also check raw talk wikitext content to prevent duplicates that are not in UI for any reason
@@ -762,7 +762,7 @@ MainWindow.prototype.onSearchSelect = function ( data ) {
 			const exists = containsTemplate( { content: this.talkWikitext, names: [ name ], namespaceAliases: [], topMarker: '__TOP__' } );
 			if ( exists ) {
 				this.topBar.searchBox.popPending();
-				return OO.ui.alert( 'The page already contains {{' + name + '}}' ).then( () => this.topBar.searchBox.focus() );
+				return OO.ui.alert( i18n.t( 'alert-page-banner-existing', null, { name } ) ).then( () => this.topBar.searchBox.focus() );
 			}
 		}
 	} catch ( _e ) { /* ignore */ }
@@ -773,11 +773,11 @@ MainWindow.prototype.onSearchSelect = function ( data ) {
 	name = ensured.name;
 	if ( !ensured.hasValidPrefix && !ensured.addedPrefix ) {
 		confirmText = new OO.ui.HtmlSnippet(
-			'{{' + mw.html.escape( name ) + '}} is not a recognised WikiProject banner.<br/>Do you want to continue?'
+			i18n.t( 'confirm-unrecognised-banner', null, { name: mw.html.escape( name ) } )
 		);
-	} else if ( name === 'WikiProject Disambiguation' && document.querySelector( '#ca-talk.new' ) && this.bannerList.items.length === 0 ) {
+	} else if ( config.talkPageWarnings.includes( name ) && document.querySelector( '#ca-talk.new' ) && this.bannerList.items.length === 0 ) {
 
-		confirmText = "New talk pages shouldn't be created if they will only contain the \{\{WikiProject Disambiguation\}\} banner. Continue?";
+		confirmText = i18n.t( 'confirm-only-banner', null, { name } );
 	}
 	Promise.resolve( confirmText ? OO.ui.confirm( confirmText ) : true )
 		.then( ( confirmed ) => {
@@ -836,6 +836,8 @@ MainWindow.prototype.onWrapProjects = function () {
 
 MainWindow.prototype.onRemoveAll = function () {
 	this.bannerList.clearItems();
+	this.bannerList.setChanged();
+	this.onBannerListUpdateSize();
 };
 
 MainWindow.prototype.onClearAll = function () {
@@ -856,7 +858,7 @@ MainWindow.prototype.transformTalkWikitext = function ( talkWikitext ) {
 MainWindow.prototype.isRatedAndNotStub = function () {
 	const nonStubRatinggs = this.bannerList.items.filter( ( banner ) => canRateBanner( banner ) && ( banner.hasClassRatings || banner.isShellTemplate ) &&
 		banner.classDropdown.getValue() &&
-		banner.classDropdown.getValue() !== 'Stub'
+		!config.bannerDefaults.stubClasses.map( formatClassRating ).includes( banner.classDropdown.getValue() )
 	);
 	return nonStubRatinggs.length > 0;
 };
@@ -866,7 +868,7 @@ MainWindow.prototype.makeEditSummary = function () {
 	const edited = [];
 	const added = [];
 	const shortName = ( name ) => {
-		let title = name.replace( /^(?:Subst|Подст):/i, '' );
+		let title = stripSubstitutionPrefix( name );
 		( config.bannerNamePrefixes || [] ).some( ( prefix ) => {
 			if ( title.toLowerCase().startsWith( prefix.toLowerCase() ) ) {
 				title = title.slice( prefix.length );

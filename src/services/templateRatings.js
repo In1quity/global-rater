@@ -58,23 +58,28 @@ const loadRatings = function ( template ) {
 	}
 
 	let wikitextToParse = '';
-	const classKey = ( template.classParamName || 'class' );
-	const importanceKey = ( template.importanceParamName || 'importance' );
+	const classKey = template.classParamName || config.bannerDefaults.classParamName;
+	const importanceKey = template.importanceParamName || config.bannerDefaults.importanceParamName;
+	if ( !config.ratingDetection.parseTitle || ( !config.ratingDetection.classCategoryPattern && !config.ratingDetection.importanceCategoryPattern ) ) {
+		template.classes = template.classes || ( classKey ? config.bannerDefaults.classes.slice() : [] );
+		template.importances = template.importances || ( importanceKey ? config.bannerDefaults.importances.slice() : [] );
+		return done.resolve();
+	}
 	config.bannerDefaults.extendedClasses.forEach( ( classname, index ) => {
 		wikitextToParse += '{{' + mainText + '|' + classKey + '=' + classname + '|' + importanceKey + '=' + ( config.bannerDefaults.extendedImportances[ index ] || '' ) + '}}\n';
 	} );
 
 	return API.get( {
 		action: 'parse',
-		title: 'Talk:Wikipedia',
+		title: config.ratingDetection.parseTitle,
 		text: wikitextToParse,
 		prop: 'categorieshtml'
 	} )
 		.then( ( result ) => {
 			const catsHtml = result.parse.categorieshtml[ '*' ];
-			const extendedClasses = config.bannerDefaults.extendedClasses.filter( ( cl ) => catsHtml.includes( cl + '-Class' ) );
+			const extendedClasses = config.bannerDefaults.extendedClasses.filter( ( cl ) => config.ratingDetection.classCategoryPattern && catsHtml.includes( config.ratingDetection.classCategoryPattern.replace( /\{value\}/g, cl ) ) );
 			template.classes = [ ...config.bannerDefaults.classes, ...extendedClasses ];
-			template.importances = config.bannerDefaults.extendedImportances.filter( ( imp ) => catsHtml.includes( imp + '-importance' ) );
+			template.importances = config.bannerDefaults.extendedImportances.filter( ( imp ) => config.ratingDetection.importanceCategoryPattern && catsHtml.includes( config.ratingDetection.importanceCategoryPattern.replace( /\{value\}/g, imp ) ) );
 			cache.write( mainText + '-ratings', { classes: template.classes, importances: template.importances }, 1 );
 			return true;
 		} );

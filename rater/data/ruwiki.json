@@ -1,0 +1,242 @@
+{
+	"script": {
+		"advert": " ([[mw:User:Iniquity/rater.js#{version}|Рейтер]])",
+		"titlePage": "mw:User:Iniquity/rater.js",
+		"talkPage": "mw:User talk:Iniquity/rater.js"
+	},
+	"ores": {
+		"wiki": "ruwiki",
+		"enabled": true,
+		"topTierClasses": [
+			"ИС",
+			"ХС"
+		],
+		"baselineClass": "I",
+		"autofillClasses": [
+			"III",
+			"IV",
+			"3",
+			"4",
+			"список"
+		]
+	},
+	"bannerDefaults": {
+		"classes": [
+			"I",
+			"II",
+			"III",
+			"IV",
+			"ИС",
+			"ХС",
+			"ДС",
+			"ИСП",
+			"список"
+		],
+		"importances": [
+			"высшая",
+			"высокая",
+			"средняя",
+			"низкая"
+		],
+		"extendedClasses": [],
+		"extendedImportances": [],
+		"classParamName": "уровень",
+		"importanceParamName": "важность",
+		"lowImportance": "низкая",
+		"stubClasses": [
+			"IV",
+			"4"
+		],
+		"listClass": "список",
+		"classAliases": {},
+		"importanceAliases": {}
+	},
+	"customBanners": {},
+	"categories": {
+		"withRatings": "Категория:Шаблоны проектов:Баннеры",
+		"withoutRatings": "",
+		"wrappers": "",
+		"notWPBM": "",
+		"inactive": "",
+		"wir": ""
+	},
+	"subjectPageCategories": {
+		"disambig": "Категория:Страницы значений по алфавиту",
+		"stub": "Категория:Незавершённые статьи",
+		"goodArticle": "Категория:Википедия:Хорошие статьи по алфавиту",
+		"featuredArticle": "Категория:Википедия:Избранные статьи по алфавиту",
+		"featuredList": "Категория:Википедия:Избранные списки по алфавиту"
+	},
+	"bannerNamePrefixes": [
+		"Статья проекта "
+	],
+	"shellTemplate": "Блок проектов статьи",
+	"shell": {
+		"autoCreate": false,
+		"minProjects": null,
+		"classLocation": "banners",
+		"classParamName": "уровень",
+		"aliases": [],
+		"parameters": [
+			{
+				"name": "1"
+			},
+			{
+				"name": "collapsed",
+				"suggestedvalues": [
+					"yes",
+					"no"
+				],
+				"labelKey": "parameter-shell-collapsed"
+			},
+			{
+				"name": "header",
+				"labelKey": "parameter-shell-header"
+			},
+			{
+				"name": "blp",
+				"aliases": [
+					"living"
+				],
+				"suggestedvalues": [
+					"yes",
+					"no"
+				],
+				"labelKey": "parameter-shell-blp"
+			},
+			{
+				"name": "blpo",
+				"suggestedvalues": [
+					"yes",
+					"no"
+				],
+				"labelKey": "parameter-shell-blpo"
+			},
+			{
+				"name": "activepol",
+				"suggestedvalues": [
+					"yes",
+					"no"
+				],
+				"labelKey": "parameter-shell-activepol"
+			}
+		],
+		"biographyBannerNames": [],
+		"biographyParameters": []
+	},
+	"classFormat": "arabic",
+	"classDisplayFormat": "roman",
+	"editSummaryLanguage": "ru",
+	"defaultParameterData": {
+		"уровень": {
+			"aliases": [
+				"class"
+			],
+			"suggestedvalues": [
+				"I",
+				"II",
+				"III",
+				"IV",
+				"ИС",
+				"ХС",
+				"ДС",
+				"ИСП",
+				"список"
+			],
+			"labelKey": "parameter-class-label"
+		},
+		"важность": {
+			"aliases": [
+				"importance"
+			],
+			"suggestedvalues": [
+				"высшая",
+				"высокая",
+				"средняя",
+				"низкая"
+			],
+			"labelKey": "parameter-importance-label"
+		}
+	},
+	"wiki": {
+		"servers": [
+			"https://ru.wikipedia.org"
+		]
+	},
+	"assessmentParameters": {
+		"class": [
+			"уровень",
+			"class",
+			"класс"
+		],
+		"importance": [
+			"важность",
+			"importance"
+		]
+	},
+	"ratingDetection": {
+		"parseTitle": "",
+		"classCategoryPattern": "",
+		"importanceCategoryPattern": ""
+	},
+	"booleanAliases": {
+		"0": "no",
+		"1": "yes",
+		"add": "yes",
+		"added": "yes",
+		"affirm": "yes",
+		"affirmed": "yes",
+		"include": "yes",
+		"included": "yes",
+		"on": "yes",
+		"true": "yes",
+		"yes": "yes",
+		"y": "yes",
+		"decline": "no",
+		"declined": "no",
+		"exclude": "no",
+		"excluded": "no",
+		"false": "no",
+		"none": "no",
+		"not": "no",
+		"no": "no",
+		"n": "no",
+		"off": "no",
+		"omit": "no",
+		"omitted": "no",
+		"remove": "no",
+		"removed": "no",
+		"да": "yes",
+		"нет": "no"
+	},
+	"substitution": {
+		"prefix": "Подст:",
+		"aliases": [
+			"subst",
+			"safesubst",
+			"подстановка",
+			"подст",
+			"защподст"
+		]
+	},
+	"sortKey": {
+		"parameter": "",
+		"suffixPatterns": []
+	},
+	"subjectPageTitlePatterns": {
+		"list": [
+			"^Список(?:\\s|$)"
+		]
+	},
+	"subjectPageCategoryPatterns": {
+		"stub": [
+			"^Категория:Незаверш[её]нные статьи(?:\\s|$)"
+		]
+	},
+	"talkPageWarnings": [],
+	"bannerExclusions": [
+		"Статья проекта",
+		"Уровень статьи"
+	],
+	"autostartTemplatePatterns": []
+}

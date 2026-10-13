@@ -6,6 +6,7 @@ import { getCanonicalName } from '@services/templateRedirects.js';
 import { getWithRedirectTo } from '@services/templateRedirects.js';
 import { parseTemplates } from '@utils/parseTemplates.js';
 import logger from '@services/logger.js';
+import config from '@constants/config.js';
 
 const log = logger.get( 'templateScanner' );
 // <nowiki>
@@ -237,7 +238,7 @@ const findBannerTemplatesOnTalk = function ( params ) {
 					getCanonicalName( template ) :
 					'';
 				if ( ( allBanners.wrappers || [] ).includes( mainText ) ) {
-					template.redirectTarget = mw.Title.newFromText( addNamespacePrefix( 'Subst:' + mainText ) );
+					template.redirectTarget = mw.Title.newFromText( addNamespacePrefix( config.substitution.prefix + mainText ) );
 				}
 				if ( ( allBanners.withoutRatings || [] ).includes( mainText ) || ( allBanners.wir || [] ).includes( mainText ) ) {
 					template.withoutRatings = true;

@@ -8,6 +8,9 @@ import { findBannerTemplatesOnTalk } from '../../src/services/templateScanner.js
 import { shouldCreateShell, displayClassRating } from '../../src/services/shellPolicy.js';
 import { parseTemplates } from '../../src/utils/parseTemplates.js';
 import API from '../../src/services/api.js';
+import * as cache from '../../src/services/cache.js';
+import { loadRatings } from '../../src/services/templateRatings.js';
+import { addMissingParams } from '../../src/services/autofill.js';
 import BannerWidget from '../../src/components/BannerWidget.js';
 import BannerListWidget from '../../src/components/BannerListWidget.js';
 import TopBarWidget from '../../src/components/TopBarWidget.js';
@@ -98,6 +101,51 @@ it('manually wraps Russian projects while preserving local assessments and impor
 	expect(text.match(/уровень=2/g)).toHaveLength(2);
 	expect(text.match(/важность=высшая/g)).toHaveLength(2);
 	expect(text).not.toContain('Статья проекта Блок');
+});
+
+it.each(['missing', 'no-TemplateData', 'api-error', 'cached-fallback'])('uses Russian fallback metadata without injecting English fields when TemplateData is %s', async (scenario) => {
+	const title = 'Шаблон:Статья проекта Славистика';
+	if (scenario === 'cached-fallback') {
+		cache.write(title + '-params-v2', {
+			notemplatedata: true, classParamName: 'class', importanceParamName: 'importance',
+			paramData: {
+				'needs-image': {suggested: true, autovalue: 'yes'},
+				'needs-infobox': {suggested: true, autovalue: 'yes'}
+			}, parameterSuggestions: [], paramAliases: {}
+		}, 1);
+	}
+	API.get.mockImplementation((params) => {
+		if (params.action === 'templatedata') {
+			if (scenario === 'api-error') return $.Deferred().reject('network error').promise();
+			const page = scenario === 'no-TemplateData' ? {notemplatedata: true, params: {'уровень': [], 'важность': []}} : {missing: true};
+			return $.Deferred().resolve({pages: {1: page}}).promise();
+		}
+		if (params.action === 'parse') return $.Deferred().resolve({parse: {categorieshtml: {'*': ''}}}).promise();
+		return $.Deferred().resolve({query: {pages: {}}}).promise();
+	});
+	const models = parseTemplates('{{Блок проектов статьи|{{Статья проекта Славистика|уровень=3|важность=высокая}}}}', true);
+	for (const model of models) {
+		await loadParamDataAndSuggestions(model);
+		await loadRatings(model);
+		addMissingParams(model);
+	}
+	const banners = new BannerListWidget({preferences: prefs});
+	banners.addItems(models.map((model) => new BannerWidget(model, {preferences: prefs, isArticle: true})));
+	const project = banners.items.find((item) => !item.isShellTemplate);
+	expect(project.classParamName).toBe('уровень');
+	expect(project.importanceParamName).toBe('важность');
+	expect(project.classDropdown.getValue()).toBe('3');
+	expect(project.classDropdown.getMenu().findItemFromData('3').getLabel()).toBe('III');
+	expect(project.importanceDropdown.getValue()).toBe('высокая');
+	expect(project.parameterList.getParameterItems()).toHaveLength(0);
+	expect(project.parameterSuggestions).toHaveLength(0);
+	for (const banner of banners.items) {
+		expect(banner.paramData).not.toHaveProperty('needs-image');
+		expect(banner.paramData).not.toHaveProperty('needs-infobox');
+	}
+	expect(banners.makeWikitext()).toContain('уровень=3|важность=высокая');
+	expect(banners.makeWikitext()).not.toMatch(/needs-(?:image|infobox)/);
+	if (scenario === 'cached-fallback') expect(API.get.mock.calls.some(([params]) => params.action === 'templatedata')).toBe(true);
 });
 
 it('allows supported shell aliases, rejects new unsupported fields and preserves existing ones', async () => {
@@ -227,6 +275,46 @@ it('opens the editor with an automatically created shell ready for serialization
 	await manager.closeWindow(dialog).closed;
 	await manager.destroy();
 	await new Promise((resolve) => setTimeout(resolve, 350));
+});
+
+it.each(['individual', 'all'])('allows wrapping again after removing the shell and disables wrapping after removing %s projects', async (removal) => {
+	const manager = new OO.ui.WindowManager();
+	for (const method of ['getSetupDelay', 'getReadyDelay', 'getHoldDelay', 'getTeardownDelay']) {
+		vi.spyOn(manager, method).mockReturnValue(0);
+	}
+	const dialog = new MainWindow();
+	manager.addWindows([dialog]);
+	document.body.appendChild(manager.$element[0]);
+	const page = {getNamespacePrefix: () => '', getPrefixedText: () => 'Example'};
+	try {
+		await manager.openWindow(dialog, {
+			preferences: prefs, banners: [template()], bannerNames: {}, isArticle: true,
+			subjectPage: page, talkpage: page, talkWikitext: '{{Статья проекта История|уровень=II|важность=высшая}}'
+		}).opened;
+		for (let cycle = 0; cycle < 2; cycle++) {
+			expect(dialog.topBar.wrapShellButton.isDisabled()).toBe(false);
+			dialog.topBar.wrapShellButton.$button.trigger($.Event('click', {which: 1}));
+			await dialog.bannerList.shellCreationPromise;
+			const shells = dialog.bannerList.items.filter((item) => item.isShellTemplate);
+			expect(shells).toHaveLength(1);
+			expect(dialog.topBar.wrapShellButton.isDisabled()).toBe(true);
+			shells[0].removeButton.$button.trigger($.Event('click', {which: 1}));
+			expect(dialog.bannerList.items.some((item) => item.isShellTemplate)).toBe(false);
+			expect(dialog.topBar.wrapShellButton.isDisabled()).toBe(false);
+			expect(dialog.bannerList.makeWikitext()).toContain('уровень=2|важность=высшая');
+		}
+		if (removal === 'individual') {
+			dialog.bannerList.items[0].removeButton.$button.trigger($.Event('click', {which: 1}));
+		} else {
+			dialog.topBar.removeAllButton.$button.trigger($.Event('click', {which: 1}));
+		}
+		expect(dialog.bannerList.items).toHaveLength(0);
+		expect(dialog.topBar.wrapShellButton.isDisabled()).toBe(true);
+	} finally {
+		await manager.closeWindow(dialog).closed;
+		await manager.destroy();
+		await new Promise((resolve) => setTimeout(resolve, 350));
+	}
 });
 
 it('gives the project action menu enough width and permits wrapping long labels', () => {

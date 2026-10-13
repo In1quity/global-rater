@@ -3,6 +3,7 @@ import cssInjectedByJsPlugin from 'vite-plugin-css-injected-by-js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { escapeWikiControlCharacters } from './scripts/wiki-safe-source.js';
+import { readJsonDirectory, prepareLoaderSource } from './scripts/localization-data.js';
 export default defineConfig(({ command, mode }) => {
 	const isProd = command === 'build' && mode === 'production';
 	const isDev = command === 'serve' || mode === 'development';
@@ -30,8 +31,8 @@ export default defineConfig(({ command, mode }) => {
 /* <nowiki> */`;
 	const footer = `/* </nowiki> */`;
 	const buildDate = new Date().toISOString().slice(0, 10);
-	const enDict = JSON.parse(fs.readFileSync(new URL('./i18n/en.json', import.meta.url)));
-	const ruDict = JSON.parse(fs.readFileSync(new URL('./i18n/ru.json', import.meta.url)));
+	const dictionaries = readJsonDirectory(path.resolve('i18n'));
+	const wikiProfiles = readJsonDirectory(path.resolve('rater/data'));
 	
 	return {
 	// Modern environment handling
@@ -50,14 +51,26 @@ export default defineConfig(({ command, mode }) => {
 		RATER_VERSION: JSON.stringify(pkg.version),
 		RATER_DOC_PAGE: JSON.stringify(pkg.documentation),
 		BUILD_DATE: JSON.stringify(buildDate),
-		RATER_I18N_EN: JSON.stringify(enDict),
-		RATER_I18N_RU: JSON.stringify(ruDict),
+		RATER_I18N_DICTIONARIES: JSON.stringify(dictionaries),
+		RATER_WIKI_CONFIGS: JSON.stringify(wikiProfiles),
 		// Modern global definitions
 		__DEV__: isDev,
 		__PROD__: isProd
 	},
 	plugins: [
 		cssInjectedByJsPlugin(),
+		{
+			name: 'rater-publish-localization-data',
+			apply: 'build',
+			generateBundle() {
+				for (const [wiki, profile] of Object.entries(wikiProfiles)) {
+					this.emitFile({type: 'asset', fileName: 'rater/data/' + wiki + '.json', source: JSON.stringify(profile, null, '\t') + '\n'});
+				}
+				for (const [language, dictionary] of Object.entries(dictionaries)) {
+					this.emitFile({type: 'asset', fileName: 'i18n/' + language + '.json', source: JSON.stringify(dictionary, null, '\t') + '\n'});
+				}
+			}
+		},
 		{
 			name: 'minify-vue-templates',
 			enforce: 'pre',
@@ -100,7 +113,7 @@ export default defineConfig(({ command, mode }) => {
 			generateBundle() {
 				const indexPath = path.resolve(process.cwd(), 'index.js');
 				if ( fs.existsSync(indexPath) ) {
-					const source = fs.readFileSync(indexPath, 'utf8');
+					const source = prepareLoaderSource(fs.readFileSync(indexPath, 'utf8'), dictionaries, wikiProfiles.default.i18n.fallbackLanguage);
 					this.emitFile({ type: 'asset', fileName: 'rater.js', source: `${banner}\n${source}\n${footer}` });
 				}
 			}

@@ -1,14 +1,20 @@
-# Global Rater 3.3.3 — Release Notes
+# Global Rater 3.4.0 — Release Notes
 
 This release incorporates accumulated updates from [upstream Rater](https://github.com/wikimedia-gadgets/rater), improves dialog stability, and adds more flexible assessment policies for individual wikis.
 
 ## Changes
 
-- Added a **Wrap projects** button and a user preference for automatic wrapping: never, always, from two projects, from three projects, or the wiki's default.
+- Moved wiki-specific rules into automatically discovered JSON profiles: `rater/data/ruwiki.json` and `rater/data/enwiki.json`, with neutral shared defaults in `rater/data/default.json`. Categories, template schemas, rating formats, autofill rules, aliases, and edit-summary languages can be configured without adding JavaScript conditions.
+- Moved interface messages and parameter labels into language dictionaries. The loader and core use the same translation files, and the interface language remains independent of the wiki's template rules.
+- Added a configuration guide for new wiki profiles, including verified Wikidata category mappings. Russian project discovery now has an explicit local category; unsupported English category groups remain disabled. Fixed recursive category traversal and invalidated cached project lists when category settings change.
+- Preserved compatibility with existing `RATER_CONFIG` and `RATER_CONFIG_URL` overrides. URLs can select a profile with `{wiki}` and load plain JSON or a MediaWiki revisions API response. Builds also produce separate JSON copies for optional publication.
+- Added a **Wrap projects** button and a user preference for automatic wrapping: never, always, from two projects, from three projects, or the wiki's default. The button becomes available again after removing the shell and is disabled when no projects remain.
 - Added per-wiki shell parameter schemas and aliases. Banner shells are excluded from project search, their names no longer receive a project prefix, and generic project fields such as `needs-infobox` are not injected into Russian Wikipedia's shell.
+- Fixed Russian banner metadata when TemplateData is missing or unavailable: local assessment fields are recognized, English `needs-image` and `needs-infobox` defaults are not injected, and outdated cached fallback metadata is ignored.
 - Updated the defaults for Russian Wikipedia: no automatic banner shell creation and assessments in individual project banners. Roman numerals are shown in menus while Arabic numerals are written to wikitext. English Wikipedia automatically creates the shell and uses native class names and shared assessments.
 - Localized Russian Wikipedia's edit summaries independently of the user's interface language and bundled the updated Russian translations.
 - Widened the project action menu and allowed long button labels to wrap within the viewport.
+- Grouped preferences into startup, assessment autofill, projects and display, and saving/cache sections with clearer spacing and labels.
 - Fixed dialog hangs when closing without saving and when preview, comparison, or save operations fail.
 - Fixed nested banner shell handling, including stray closing braces, lost importance ratings, and incorrect assessment migration. Unsupported shared assessments now require an explicit supported choice before saving, preventing silent data loss.
 - Fixed the display of comparison rows and error messages, drag-handler cleanup when reopening the dialog, and search focus after selecting an existing project.
@@ -18,13 +24,13 @@ This release incorporates accumulated updates from [upstream Rater](https://gith
 
 ## Validation
 
-All 74 regression tests passed on each of OOUI 0.53.0, 0.53.2, and 0.54.2, including per-wiki wrapping and parameter schemas, Roman display with Arabic serialization, localized summaries, the real window open/close lifecycle, and publication-safe parser markers. Lint checks and development/production builds passed. Current page HTML was also inspected on Russian and English Wikipedia, including Vector 2022, Timeless, and MonoBook samples. Final browser layout and logged-in saving should be checked on user sandbox pages before publication.
+All 99 regression tests passed on each of OOUI 0.53.0, 0.53.2, and 0.54.2. Coverage includes new profiles without JavaScript branches, external JSON loading, category traversal and continuation, separate wiki/interface languages, repeated wrapping after shell removal, missing and cached fallback metadata, per-wiki parameter schemas, Roman display with Arabic serialization, localized summaries, the real window open/close lifecycle, and publication-safe parser markers. Lint checks and development/production builds passed. Current page HTML was also inspected on Russian and English Wikipedia, including Vector 2022, Timeless, and MonoBook samples. Final browser layout and logged-in saving should be checked on user sandbox pages before publication.
 
 ---
 
 ## Publication notes for the maintainer
 
-These notes cover both [PR #2](https://github.com/In1quity/global-rater/pull/2) and [PR #3](https://github.com/In1quity/global-rater/pull/3). Merge PR #2 first, then PR #3. The package metadata and lockfile use version **3.3.3**; rebuild from the merged sources before publication.
+These notes cover the merged [PR #2](https://github.com/In1quity/global-rater/pull/2) and [PR #3](https://github.com/In1quity/global-rater/pull/3), plus the configuration work and follow-up fixes in [PR #4](https://github.com/In1quity/global-rater/pull/4). Include PR #4 before publication. The package metadata and lockfile use version **3.4.0**: a SemVer minor release for the added configuration support. Rebuild from the merged sources before publication.
 
 Run `npm ci`, `npm run lint`, `npm run test:ooui`, and `npm run build`. The inherited `npm run test:run` suite still has its known failures: 23 failing files, mostly obsolete Template.js imports, plus an incomplete widget mock. Those failures are separate from the passing regression suite.
 
@@ -34,5 +40,7 @@ Publish the two rebuilt files to their corresponding pages:
 
 - `dist/rater.js` → [User:Iniquity/rater.js](https://www.mediawiki.org/wiki/User:Iniquity/rater.js)
 - `dist/rater-core.js` → [User:Iniquity/rater-core.js](https://www.mediawiki.org/wiki/User:Iniquity/rater-core.js)
+
+The profiles and English/Russian dictionaries are already bundled. If maintaining separate wiki JSON pages, publish the corresponding `dist/rater/data/*.json` copies and explicitly connect them with `RATER_CONFIG_URL`; see [wiki-configuration.md](wiki-configuration.md). An old external configuration still overrides the bundled profile, so review existing assignments in common.js when testing the new defaults. No extra HTTP cache parameters are needed.
 
 The sections above the divider can be used as the public release description. Keep these publication notes out of the published changelog. The full compatibility review and its testing limits are in [dom-compatibility-2026.md](dom-compatibility-2026.md).

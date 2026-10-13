@@ -92,14 +92,25 @@ function PrefsFormWidget( prefsConfig ) {
 		}
 	};
 
-	for ( const prefName in this.preferences ) {
-		this.layout.addItems( [
-			new OO.ui.FieldLayout( this.preferences[ prefName ].input, {
-				label: this.preferences[ prefName ].label,
-				align: 'right'
-			} )
-		] );
-	}
+	const groups = [
+		{ label: 'prefs-group-startup', names: [ 'autostart', 'autostartRedirects', 'autostartNamespaces' ] },
+		{ label: 'prefs-group-assessments', names: [ 'autofillClassFromOthers', 'autofillClassFromOres', 'autofillImportance' ] },
+		{ label: 'prefs-group-projects', names: [ 'shellCreation', 'bypassRedirects', 'collapseParamsLowerLimit' ] },
+		{ label: 'prefs-group-saving', names: [ 'watchlist', 'resetCache' ] }
+	];
+	this.layout.addItems( groups.map( ( group ) => new OO.ui.FieldsetLayout( {
+		label: i18n.t( group.label ),
+		classes: [ 'rater-prefsFormWidget-section' ],
+		items: group.names.map( ( prefName ) => {
+			const preference = this.preferences[ prefName ];
+			const isToggle = preference.input instanceof OO.ui.ToggleSwitchWidget;
+			return new OO.ui.FieldLayout( preference.input, {
+				label: preference.label,
+				align: isToggle ? 'left' : 'top',
+				classes: isToggle ? [ 'rater-prefsFormWidget-toggle' ] : []
+			} );
+		} )
+	} ) ) );
 
 	this.preferences.resetCache.input.connect( this, { click: 'onResetCacheClick' } );
 }

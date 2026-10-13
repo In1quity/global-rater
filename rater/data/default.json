@@ -1,0 +1,103 @@
+{
+	"wiki": {
+		"servers": []
+	},
+	"script": {
+		"advert": "",
+		"titlePage": "mw:User:Iniquity/rater.js",
+		"talkPage": "mw:User talk:Iniquity/rater.js"
+	},
+	"i18n": {
+		"fallbackLanguage": "en",
+		"baseUrl": "https://gitlab-content.toolforge.org/iniquity/rater/-/raw/master/i18n/"
+	},
+	"defaultPrefs": {
+		"autostart": false,
+		"autostartRedirects": false,
+		"autostartNamespaces": [
+			0
+		],
+		"bypassRedirects": true,
+		"autofillClassFromOthers": true,
+		"autofillClassFromOres": true,
+		"autofillImportance": true,
+		"collapseParamsLowerLimit": 6,
+		"shellCreation": "wiki",
+		"watchlist": "preferences"
+	},
+	"ores": {
+		"enabled": false,
+		"wiki": "",
+		"topTierClasses": [],
+		"baselineClass": "",
+		"autofillClasses": []
+	},
+	"bannerDefaults": {
+		"classes": [],
+		"importances": [],
+		"extendedClasses": [],
+		"extendedImportances": [],
+		"classParamName": null,
+		"importanceParamName": null,
+		"lowImportance": null,
+		"stubClasses": [],
+		"listClass": null,
+		"classAliases": {},
+		"importanceAliases": {}
+	},
+	"customBanners": {},
+	"categories": {
+		"withRatings": "",
+		"withoutRatings": "",
+		"wrappers": "",
+		"notWPBM": "",
+		"inactive": "",
+		"wir": ""
+	},
+	"subjectPageCategories": {
+		"disambig": "",
+		"stub": "",
+		"goodArticle": "",
+		"featuredArticle": "",
+		"featuredList": ""
+	},
+	"subjectPageCategoryPatterns": {},
+	"subjectPageTitlePatterns": {},
+	"bannerNamePrefixes": [],
+	"bannerExclusions": [],
+	"shellTemplate": "",
+	"shell": {
+		"autoCreate": false,
+		"minProjects": null,
+		"classLocation": "banners",
+		"classParamName": null,
+		"aliases": [],
+		"parameters": [],
+		"biographyBannerNames": [],
+		"biographyParameters": []
+	},
+	"classFormat": "native",
+	"classDisplayFormat": "native",
+	"editSummaryLanguage": null,
+	"defaultParameterData": {},
+	"assessmentParameters": {
+		"class": [],
+		"importance": []
+	},
+	"booleanAliases": {},
+	"substitution": {
+		"prefix": "",
+		"aliases": []
+	},
+	"sortKey": {
+		"parameter": "",
+		"suffixPatterns": []
+	},
+	"talkPageWarnings": [],
+	"ratingDetection": {
+		"parseTitle": "",
+		"classCategoryPattern": "",
+		"importanceCategoryPattern": ""
+	},
+	"autostartTemplatePatterns": []
+}

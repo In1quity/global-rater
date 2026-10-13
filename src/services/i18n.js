@@ -1,75 +1,56 @@
+import config from '@constants/config.js';
 // <nowiki>
 
-// Always bundle English as a local fallback (pre-bundled at build time)
-// Use define()-injected fallback to avoid CommonJS require
-let fallbackDict;
-try {
-	// Prefer global injected dictionary if present
-	fallbackDict = ( typeof RATER_I18N_EN !== 'undefined' ) ? RATER_I18N_EN : {};
-} catch ( _ ) {
-	fallbackDict = {};
-}
-
-// Cache for loaded dictionaries; prefill with English
-const cachedDictionaries = {
-	en: fallbackDict,
-	ru: typeof RATER_I18N_RU !== 'undefined' ? RATER_I18N_RU : null
-};
-
-// In-flight loads to avoid duplicate requests
+const cachedDictionaries = Object.assign( {}, typeof RATER_I18N_DICTIONARIES !== 'undefined' ? RATER_I18N_DICTIONARIES : {} );
 const pendingLoads = {};
 
-function getLangCode() {
-	const userLang = ( mw && mw.config && mw.config.get && mw.config.get( 'wgUserLanguage' ) ) || 'en';
-	return ( userLang && userLang.split( '-' )[ 0 ] ) || 'en';
-}
+const getLangCode = function () {
+	const language = mw.config.get( 'wgUserLanguage' ) || config.i18n.fallbackLanguage;
+	return cachedDictionaries[ language ] ? language : language.split( '-' )[ 0 ];
+};
+const getFallback = () => cachedDictionaries[ config.i18n.fallbackLanguage ] || {};
 
-function getBaseUrl() {
-	// Allow override via global for testing or mirrors
-	// Example: window.RaterI18nBaseUrl = "https://gitlab.wikimedia.org/iniquity/rater/-/raw/master/i18n/";
-	return ( typeof window !== 'undefined' && window.RaterI18nBaseUrl ) || 'https://gitlab-content.toolforge.org/iniquity/rater/-/raw/master/i18n/';
-}
-
-function loadLanguage( langCode ) {
-	const code = ( langCode || getLangCode() ) || 'en';
+const loadLanguage = function ( langCode ) {
+	const code = langCode || getLangCode();
 	if ( cachedDictionaries[ code ] ) {
 		return $.Deferred().resolve( cachedDictionaries[ code ] ).promise();
 	}
 	if ( pendingLoads[ code ] ) {
 		return pendingLoads[ code ];
 	}
-	const url = getBaseUrl() + code + '.json';
 	const deferred = $.Deferred();
 	pendingLoads[ code ] = deferred.promise();
-	$.getJSON( url )
-		.done( ( dict ) => {
-			cachedDictionaries[ code ] = dict || {};
+	$.getJSON( ( window.RaterI18nBaseUrl || config.i18n.baseUrl ) + code + '.json' )
+		.done( ( dictionary ) => {
+			cachedDictionaries[ code ] = dictionary || {};
 			delete pendingLoads[ code ];
 			deferred.resolve( cachedDictionaries[ code ] );
 		} )
 		.fail( () => {
-			// Keep it missing; fall back to English at lookup time
 			delete pendingLoads[ code ];
-			deferred.resolve( fallbackDict );
+			deferred.resolve( getFallback() );
 		} );
 	return deferred.promise();
-}
-
-function translate( key, langCode ) {
-	const code = langCode || getLangCode();
-	const dict = cachedDictionaries[ code ];
-	const en = fallbackDict || {};
-	return ( dict && dict[ key ] ) || en[ key ] || key;
-}
-
-// Kick off background load for the user's language (non-blocking)
-try {
-	loadLanguage( getLangCode() );
-} catch ( e ) { /* ignore */ }
-
-export default {
-	t: translate,
-	getLangCode,
-	load: loadLanguage
 };
+
+const translate = function ( key, langCode, parameters = {} ) {
+	const dictionary = cachedDictionaries[ langCode || getLangCode() ] || {};
+	const message = dictionary[ key ] || getFallback()[ key ] || key;
+	return String( message ).replace( /\{(\w+)\}/g, ( match, name ) => parameters[ name ] === undefined ? match : parameters[ name ] );
+};
+
+// TemplateData can contain multilingual labels; profile descriptors can reference i18n keys.
+const metadataText = function ( data, property ) {
+	if ( !data ) {
+		return '';
+	}
+	if ( data[ property + 'Key' ] ) {
+		return translate( data[ property + 'Key' ] );
+	}
+	const values = data[ property ];
+	return typeof values === 'string' ? values : values &&
+		( values[ getLangCode() ] || values[ config.i18n.fallbackLanguage ] || Object.values( values )[ 0 ] ) || '';
+};
+
+export default { t: translate, getLangCode, load: loadLanguage, metadataText };
 // </nowiki>

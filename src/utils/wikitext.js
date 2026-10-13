@@ -8,6 +8,14 @@ import { normalizeString } from './util.js';
 const WS_NBSP_CLASS = '[\\s\\u00A0\\u2000-\\u200A\\u202F\\u205F\\u3000]+'; // whitespace incl. various NBSPs (double-escaped for new RegExp)
 const ESCAPE_REGEX = /[.*+?^${}()|[\]\\]/g;
 
+const stripSubstitutionPrefix = function ( title ) {
+	const aliases = config.substitution.aliases || [];
+	if ( !aliases.length ) {
+		return title;
+	}
+	return String( title ).replace( new RegExp( '^(?:' + aliases.map( ( alias ) => alias.replace( ESCAPE_REGEX, '\\$&' ) ).join( '|' ) + '):', 'i' ), '' );
+};
+
 // Collapse spaces and strip simple warning symbol sequences from headings
 const sanitizeSectionName = function ( text ) {
 	const base = normalizeString( text );
@@ -274,5 +282,5 @@ const findTemplatesByNames = function ( content, names, namespaceAliases ) {
 	return out;
 };
 
-export { sanitizeSectionName, computeSectionBounds, escapeTplName, buildTemplateRegexFor, extractTemplateName, buildOpenRegexFor, findBlockRange, isAnyTemplateInSection, filterNewTemplates, containsTemplate, normalizeTemplateName, buildOptionalNamespacePart, stripNamespacePrefix, addNamespacePrefix, findTemplatesByNames, stripAnyTemplateNs, normalizeTemplateTitle, WS_NBSP_CLASS, ESCAPE_REGEX, normalizeBlockText, isShellOpenLine, computeTopInsertIndex };
+export { sanitizeSectionName, computeSectionBounds, escapeTplName, buildTemplateRegexFor, extractTemplateName, buildOpenRegexFor, findBlockRange, isAnyTemplateInSection, filterNewTemplates, containsTemplate, normalizeTemplateName, buildOptionalNamespacePart, stripNamespacePrefix, addNamespacePrefix, findTemplatesByNames, stripAnyTemplateNs, stripSubstitutionPrefix, normalizeTemplateTitle, WS_NBSP_CLASS, ESCAPE_REGEX, normalizeBlockText, isShellOpenLine, computeTopInsertIndex };
 // </nowiki>

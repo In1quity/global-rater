@@ -4,6 +4,7 @@ const log = logger.get( 'autostart' );
 import { getPrefs } from '@services/prefs.js';
 import API, { makeErrorMsg } from '@services/api.js';
 import setupRater from '@services/setup.js';
+import { stripAnyTemplateNs } from '@utils/wikitext.js';
 // <nowiki>
 
 const autoStart = function autoStart() {
@@ -23,7 +24,7 @@ const autoStart = function autoStart() {
 		}
 		const subjectTitle = mw.Title.newFromText( config.mw.wgPageName ).getSubjectPage();
 		// Check if subject page is the main page
-		if ( subjectTitle.getPrefixedText() === 'Main Page' ) {
+		if ( config.mw.wgIsMainPage ) {
 			return;
 		}
 		// Check subject page namespace
@@ -40,10 +41,7 @@ const autoStart = function autoStart() {
 			return setupRater();
 		}
 
-		/* Check templates present on talk page. Fetches indirectly transcluded templates, so will find
-			Template:WPBannerMeta (and its subtemplates). But some banners such as MILHIST don't use that
-			meta template, so we also have to check for template titles containg 'WikiProject'
-		*/
+		// Detect configured project prefixes and meta-template names on the talk page.
 		const talkTitle = mw.Title.newFromText( config.mw.wgPageName ).getTalkPage();
 		return API.get( {
 			action: 'query',
@@ -62,7 +60,11 @@ const autoStart = function autoStart() {
 					return setupRater();
 				}
 
-				const hasWikiproject = templates.some( ( template ) => /(WikiProject|WPBanner)/.test( template.title ) );
+				const hasWikiproject = templates.some( ( template ) => {
+					const name = stripAnyTemplateNs( template.title ).toLowerCase();
+					return config.bannerNamePrefixes.some( ( prefix ) => name.startsWith( prefix.toLowerCase() ) ) ||
+						config.autostartTemplatePatterns.some( ( pattern ) => new RegExp( pattern, 'i' ).test( name ) );
+				} );
 
 				if ( !hasWikiproject ) {
 					return setupRater();

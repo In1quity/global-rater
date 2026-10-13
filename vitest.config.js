@@ -1,7 +1,12 @@
 import { defineConfig, configDefaults } from 'vitest/config';
 import path from 'path';
+import { readJsonDirectory } from './scripts/localization-data.js';
 
 export default defineConfig({
+	define: {
+		RATER_I18N_DICTIONARIES: JSON.stringify(readJsonDirectory(path.resolve('i18n'))),
+		RATER_WIKI_CONFIGS: JSON.stringify(readJsonDirectory(path.resolve('rater/data')))
+	},
 	test: {
 		environment: 'jsdom',
 		globals: true,

@@ -1,3 +1,4 @@
+import config from '@constants/config.js';
 // <nowiki>
 
 // Various utility functions and objects that might be used in multiple places
@@ -6,48 +7,12 @@ const isAfterDate = function ( dateString ) {
 	return new Date( dateString ) < new Date();
 };
 
-const yesWords = [
-	'add',
-	'added',
-	'affirm',
-	'affirmed',
-	'include',
-	'included',
-	'on',
-	'true',
-	'yes',
-	'y',
-	'1'
-];
-const noWords = [
-	'decline',
-	'declined',
-	'exclude',
-	'excluded',
-	'false',
-	'none',
-	'not',
-	'no',
-	'n',
-	'off',
-	'omit',
-	'omitted',
-	'remove',
-	'removed',
-	'0'
-];
 const normaliseYesNo = function ( val ) {
 	if ( val === null || typeof val === 'undefined' ) {
 		return val;
 	}
-	const trimmedLcVal = val.trim().toLowerCase();
-	if ( yesWords.includes( trimmedLcVal ) ) {
-		return 'yes';
-	} else if ( noWords.includes( trimmedLcVal ) ) {
-		return 'no';
-	} else {
-		return trimmedLcVal;
-	}
+	const lower = String( val ).trim().toLowerCase();
+	return config.booleanAliases[ lower ] || lower;
 };
 
 /**
@@ -119,78 +84,20 @@ function uniqueArray( array ) {
 	return unique;
 }
 
-function classMask( classVal ) {
-	if ( !classVal ) {
-		return classVal;
+const normaliseRating = function ( value, kind ) {
+	if ( !value ) {
+		return value;
 	}
-	switch ( classVal.toLowerCase() ) {
-		case 'fa':
-		case 'fl':
-		case 'a':
-		case 'ga':
-		case 'b':
-		case 'c':
-		case 'na':
-		case 'fm':
-		case 'al':
-		case 'bl':
-		case 'cl':
-			return classVal.toUpperCase();
-		case 'start':
-		case 'stub':
-		case 'list':
-		case 'portal':
-		case 'project':
-		case 'draft':
-		case 'book':
-		case 'future':
-		case 'current':
-		case 'complete':
-		case 'substantial':
-		case 'basic':
-		case 'incomplete':
-		case 'meta':
-			return classVal.slice( 0, 1 ).toUpperCase() + classVal.slice( 1 ).toLowerCase();
-		case 'image':
-		case 'img':
-		case 'file':
-			return 'File';
-		case 'category':
-		case 'cat':
-		case 'categ':
-			return 'Category';
-		case 'disambiguation':
-		case 'disambig':
-		case 'disamb':
-		case 'dab':
-			return 'Disambig';
-		case 'redirect':
-		case 'redir':
-		case 'red':
-			return 'Redirect';
-		case 'template':
-		case 'temp':
-		case 'tpl':
-			return 'Template';
-		case 'bplus':
-		case 'b+':
-			return 'Bplus';
-		case 'fpo':
-			return 'FPo';
-		default:
-			return classVal;
-	}
-}
-
-function importanceMask( importance ) {
-	if ( !importance ) {
-		return importance;
-	}
-	if ( importance.toLowerCase() === 'na' ) {
-		return 'NA';
-	}
-	return importance.slice( 0, 1 ).toUpperCase() + importance.slice( 1 ).toLowerCase();
-}
+	const lower = String( value ).toLowerCase();
+	const aliases = kind === 'classes' ? config.bannerDefaults.classAliases : config.bannerDefaults.importanceAliases;
+	const options = ( config.bannerDefaults[ kind ] || [] ).concat(
+		kind === 'classes' ? config.bannerDefaults.extendedClasses : config.bannerDefaults.extendedImportances,
+		...Object.values( config.customBanners ).map( ( banner ) => banner[ kind ] || [] )
+	);
+	return options.find( ( option ) => String( option ).toLowerCase() === lower ) || ( aliases || {} )[ lower ] || value;
+};
+const classMask = ( value ) => normaliseRating( value, 'classes' );
+const importanceMask = ( value ) => normaliseRating( value, 'importances' );
 
 // String utilities
 const strReplaceAt = function ( string, index, char ) {

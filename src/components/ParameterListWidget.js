@@ -38,7 +38,7 @@ const ParameterListWidget = function ParameterListWidget( config ) {
 		if ( hiddenCount > 0 ) {
 			// Add button to show the hidden params
 			this.showMoreParametersButton = new OO.ui.ButtonWidget( {
-				label: 'Show ' + hiddenCount + ' more ' + ( hiddenCount === 1 ? 'parameter' : 'parameters' ),
+				label: i18n.t( 'button-more-parameters', null, { count: hiddenCount } ),
 				framed: false
 			} );
 			this.showMoreParametersButton.$element.addClass( 'rater-parameterListWidget-showMoreButton' );
@@ -169,7 +169,7 @@ ParameterListWidget.prototype.setPreferences = function ( prefs ) {
 		this.removeItems( [ this.showMoreParametersButton ] );
 	} else {
 		this.showMoreParametersButton.setLabel(
-			'Show ' + stillHiddenCount + ' more ' + ( stillHiddenCount === 1 ? 'paramter' : 'paramters' )
+			i18n.t( 'button-more-parameters', null, { count: stillHiddenCount } )
 		);
 	}
 };

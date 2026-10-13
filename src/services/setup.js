@@ -74,13 +74,14 @@ const setupRater = function ( clickEvent ) {
 				return res;
 			}
 			if ( res ) {
-				return Object.assign( {}, res, { isList: !res.isFL && /^Lists? of/.test( subjectPage.getPrefixedText() ) } );
+				return Object.assign( {}, res, { isList: !res.isFL && ( config.subjectPageTitlePatterns.list || [] )
+					.some( ( pattern ) => new RegExp( pattern ).test( subjectPage.getPrefixedText() ) ) } );
 			}
 			return res;
 		} );
 
 	// Retrieve rating from ORES (task 6, only needed for articles) - but don't error out if request fails
-	const shouldGetOres = ( subjectIsArticle ); // TODO: Don't need to get ORES for redirects or disambigs
+	const shouldGetOres = subjectIsArticle && config.ores.enabled;
 	let oresPromise = null;
 	if ( shouldGetOres ) {
 		const latestRevIdPromise = !currentPage.isTalkPage() ?

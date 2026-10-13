@@ -43,10 +43,11 @@ const formatClassRating = ( value ) => convertClassNotation( value, config.class
 const displayClassRating = ( value ) => convertClassNotation( value, config.classDisplayFormat );
 
 const isClassParameter = function ( banner, name ) {
-	const canonical = String( banner.classParamName || 'class' ).toLowerCase();
+	const canonical = String( banner.classParamName || config.bannerDefaults.classParamName ).toLowerCase();
 	const lower = String( name ).toLowerCase();
 	const alias = banner.paramAliases && ( banner.paramAliases[ name ] || banner.paramAliases[ lower ] );
-	return lower === 'class' || lower === canonical || !!( alias && String( alias ).toLowerCase() === canonical );
+	return lower === canonical || config.assessmentParameters.class.some( ( candidate ) => candidate.toLowerCase() === lower ) ||
+		!!( alias && String( alias ).toLowerCase() === canonical );
 };
 
 // Resolve a shared assessment from plain values; validation must not change widgets.

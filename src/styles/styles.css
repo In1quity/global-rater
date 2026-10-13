@@ -327,6 +327,24 @@ html body.rater-mainWindow-open .rater-windowManager > .oo-ui-dialog.oo-ui-windo
 	margin-bottom: 0;
 }
 
+/* PrefsFormWidget styles */
+.rater-prefsFormWidget .rater-prefsFormWidget-section.oo-ui-fieldsetLayout {
+	display: block;
+}
+
+.rater-prefsFormWidget-section + .rater-prefsFormWidget-section {
+	border-top: 1px solid var( --border-color-subtle, #c8ccd1 );
+	padding-top: 16px;
+}
+
+.rater-prefsFormWidget .oo-ui-numberInputWidget {
+	max-width: 8em;
+}
+
+.rater-prefsFormWidget-toggle.oo-ui-fieldLayout.oo-ui-labelElement.oo-ui-fieldLayout-align-left > .oo-ui-fieldLayout-body > .oo-ui-fieldLayout-field {
+	width: auto;
+}
+
 /* LoadDialog styles */
 .rater-loadDialog-taskLabel {
 	display: block;

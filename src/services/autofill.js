@@ -1,6 +1,7 @@
 import i18n from '@services/i18n.js';
 import config from '@constants/config.js';
 import { isShellTemplateName } from '@services/templateShell.js';
+import { stripAnyTemplateNs, normalizeTemplateName } from '@utils/wikitext.js';
 // <nowiki>
 
 // Build banner suggestions list for TopBarWidget
@@ -17,11 +18,12 @@ const buildBannerSuggestions = function ( banners ) {
 	return [
 		...( banners.withRatings || [] ).map( ( name ) => ( { label: removeBannerPrefix( name ), data: { name } } ) ),
 		...( banners.withoutRatings || [] ).map( ( name ) => ( { label: removeBannerPrefix( name ), data: { name, withoutRatings: true } } ) ),
-		...( banners.wrappers || [] ).map( ( name ) => ( { label: removeBannerPrefix( name ) + ' [template wrapper]', data: { name, wrapper: true } } ) ),
+		...( banners.wrappers || [] ).map( ( name ) => ( { label: removeBannerPrefix( name ) + ' [' + i18n.t( 'banner-wrapper' ) + ']', data: { name, wrapper: true } } ) ),
 		...( banners.notWPBM || [] ).map( ( name ) => ( { label: removeBannerPrefix( name ), data: { name } } ) ),
-		...( banners.inactive || [] ).map( ( name ) => ( { label: removeBannerPrefix( name ) + ' [inactive]', data: { name, withoutRatings: true } } ) ),
-		...( banners.wir || [] ).map( ( name ) => ( { label: name + ' [Women In Red meetup/initiative]', data: { name, withoutRatings: true } } ) )
-	].filter( ( suggestion ) => !isShellTemplateName( suggestion.data.name ) );
+		...( banners.inactive || [] ).map( ( name ) => ( { label: removeBannerPrefix( name ) + ' [' + i18n.t( 'banner-inactive' ) + ']', data: { name, withoutRatings: true } } ) ),
+		...( banners.wir || [] ).map( ( name ) => ( { label: name + ' [' + i18n.t( 'banner-wir' ) + ']', data: { name, withoutRatings: true } } ) )
+	].filter( ( suggestion ) => !isShellTemplateName( suggestion.data.name ) && !( config.bannerExclusions || [] )
+		.some( ( name ) => normalizeTemplateName( stripAnyTemplateNs( name ) ).toLowerCase() === normalizeTemplateName( stripAnyTemplateNs( suggestion.data.name ) ).toLowerCase() ) );
 };
 
 // Infer default class/importance from ORES and preferences
@@ -41,7 +43,7 @@ const makeListAs = function ( subjectTitle ) {
 		return name;
 	}
 	let generationalSuffix = '';
-	if ( / (?:[JS]r.?|[IVX]+)$/.test( name ) ) {
+	if ( config.sortKey.suffixPatterns.some( ( pattern ) => new RegExp( pattern ).test( name ) ) ) {
 		generationalSuffix = name.slice( name.lastIndexOf( ' ' ) );
 		name = name.slice( 0, name.lastIndexOf( ' ' ) );
 		if ( !name.includes( ' ' ) ) {
@@ -56,11 +58,11 @@ const makeListAs = function ( subjectTitle ) {
 const addMissingParams = function ( template ) {
 	const subjectTitle = mw.Title.newFromText( config.mw.wgPageName ).getSubjectPage();
 
-	// Autofill listas parameter for WP:BIO
+	// Fill the configured sort-key parameter for configured biography banners.
 	const isBiographyBanner = ( config.shell.biographyBannerNames || [] ).includes( template.getTitle().getMainText() ) ||
 		( template.redirectTarget && ( config.shell.biographyBannerNames || [] ).includes( template.redirectTarget.getMainText() ) );
-	if ( isBiographyBanner && !template.getParam( 'listas' ) ) {
-		template.parameters.push( { name: 'listas', value: makeListAs( subjectTitle ), autofilled: true } );
+	if ( isBiographyBanner && config.sortKey.parameter && !template.getParam( config.sortKey.parameter ) ) {
+		template.parameters.push( { name: config.sortKey.parameter, value: makeListAs( subjectTitle ), autofilled: true } );
 	}
 
 	// Ensure required/suggested params
