@@ -47,6 +47,9 @@ describe('dialog actions with real OOUI processes', () => {
 		const window = dialog();
 		await expect(Promise.resolve(window.executeAction('preview'))).rejects.toBeDefined();
 		expect(window.isPending()).toBe(false);
+		const errors = window.showErrors.mock.calls[0][0];
+		expect(errors[0].getMessageText()).toContain('timeout');
+		expect(errors[0].getMessageText()).not.toContain('[object HTMLDivElement]');
 	});
 
 	it('releases pending state when shared classes need a user choice', async () => {

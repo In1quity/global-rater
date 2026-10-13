@@ -4,7 +4,7 @@ import { normaliseYesNo, filterAndMap, uniqueArray } from '@utils/util.js';
 import ParameterWidget from './ParameterWidget.js';
 import logger from '@services/logger.js';
 import i18n from '@services/i18n.js';
-import { usesShellClass, canRateBanner, shouldCreateShell } from '@services/shellPolicy.js';
+import { usesShellClass, canRateBanner, shouldCreateShell, resolveShellClass, formatClassRating } from '@services/shellPolicy.js';
 // <nowiki>
 
 const log = logger.get( 'BannerList' );
@@ -220,11 +220,17 @@ BannerListWidget.prototype.autofillClassRatings = function () {
 		if ( banner.isShellTemplate !== forShell ) {
 			return;
 		}
+		if ( banner.isShellTemplate && banner.originalClassValue && !banner.classChanged ) {
+			return;
+		}
 		if ( !banner.hasClassRatings && !banner.isShellTemplate ) {
 			return;
 		}
 		const classItem = banner.classDropdown.getMenu().findSelectedItem();
 		if ( classItem && classItem.getData() ) {
+			return;
+		}
+		if ( !banner.classDropdown.getMenu().findItemFromData( autoClass ) ) {
 			return;
 		}
 		banner.classDropdown.getMenu().selectItemByData( autoClass );
@@ -264,60 +270,43 @@ BannerListWidget.prototype.setPreferences = function ( prefs ) {
 };
 
 BannerListWidget.prototype.makeWikitext = function () {
-	this.updateClassPlacement();
-	this.validateClassPlacement();
-	try {
-		log.info( '[makeWikitext] items=%d', this.items.length );
-	} catch ( _e ) {}
+	const shellTemplate = this.items.find( ( banner ) => banner.isShellTemplate );
+	const classValue = this.validateClassPlacement();
 	const bannersWikitext = filterAndMap(
 		this.items,
 		( banner ) => !banner.isShellTemplate,
-		( banner ) => banner.makeWikitext()
+		( banner ) => banner.makeWikitext( { includeClass: canRateBanner( banner, !!shellTemplate ) } )
 	).join( '\n' );
-	try {
-		log.info( '[makeWikitext] nonShellLen=%d', bannersWikitext.length );
-		log.debug( '[makeWikitext] nonShell sample: %s', bannersWikitext.slice( 0, 200 ) );
-	} catch ( _e ) {}
-	const shellTemplate = this.items.find( ( banner ) => banner.isShellTemplate );
+	log.debug( '[makeWikitext] items=%d, nonShellLen=%d', this.items.length, bannersWikitext.length );
 	if ( !shellTemplate ) {
-		try {
-			log.info( '[makeWikitext] no shell → return nonShell' );
-		} catch ( _e ) {}
 		return bannersWikitext;
 	}
-	const shellParam1 = new ParameterWidget( {
-		name: '1',
-		value: '\n' + bannersWikitext + '\n' +
+	return shellTemplate.makeWikitext( {
+		classValue: usesShellClass() && classValue !== undefined ? classValue : shellTemplate.classDropdown.getValue(),
+		innerContent: '\n' + bannersWikitext + '\n' +
 			( shellTemplate.nonStandardTemplates ? shellTemplate.nonStandardTemplates + '\n' : '' )
 	} );
-	shellTemplate.parameterList.addItems( [ shellParam1 ] );
-	try {
-		const tmpCount = shellTemplate.parameterList.getParameterItems().length;
-		log.debug( '[makeWikitext] temp param added, count=%d', tmpCount );
-	} catch ( _e ) {}
-	try {
-		return shellTemplate.makeWikitext();
-	} finally {
-		shellTemplate.parameterList.removeItems( [ shellParam1 ] );
-	}
 };
 
 BannerListWidget.prototype.validateClassPlacement = function () {
-	if ( !usesShellClass() || !this.items.some( ( banner ) => !banner.isShellTemplate ) ) {
+	if ( !usesShellClass() ) {
 		return;
 	}
 	const shell = this.items.find( ( banner ) => banner.isShellTemplate );
 	if ( !shell ) {
 		return;
 	}
-	const ratings = uniqueArray( this.items.filter( ( banner ) => banner.hasClassRatings || banner.isShellTemplate )
-		.map( ( banner ) => banner.classDropdown.getValue() ).filter( Boolean ) );
-	if ( ratings.length > 1 && !( shell.classChanged && !shell.classDropdown.autofilled ) ) {
-		throw new Error( i18n.t( 'error-conflicting-classes' ) );
+	const result = resolveShellClass( {
+		projectClasses: this.items.filter( ( banner ) => !banner.isShellTemplate && banner.hasClassRatings )
+			.map( ( banner ) => banner.classDropdown.getValue() ),
+		shellClass: shell.classDropdown.getValue() || ( !shell.classChanged && formatClassRating( shell.originalClassValue ) ),
+		hasExplicitClass: !!( shell.classChanged && !shell.classDropdown.autofilled ),
+		allowedClasses: shell.classDropdown.getMenu().getItems().map( ( item ) => item.getData() )
+	} );
+	if ( result.error ) {
+		throw new Error( i18n.t( result.error ) );
 	}
-	if ( ratings.length === 1 && !shell.classDropdown.getValue() && !shell.classChanged ) {
-		shell.classDropdown.getMenu().selectItemByData( ratings[ 0 ] );
-	}
+	return result.value;
 };
 
 BannerListWidget.prototype.updateClassPlacement = function () {

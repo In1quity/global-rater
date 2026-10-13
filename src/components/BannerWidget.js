@@ -13,6 +13,7 @@ import { getWithRedirectTo } from '@services/templateRedirects.js';
 import HorizontalLayoutWidget from './HorizontalLayoutWidget.js';
 import globalConfig from '@constants/config.js';
 import { canRateBanner, isClassParameter, usesShellClass, formatClassRating } from '@services/shellPolicy.js';
+import { serializeTemplate } from '@utils/serializeTemplate.js';
 // <nowiki>
 
 // Helpers
@@ -506,38 +507,43 @@ BannerWidget.prototype.bypassRedirect = function () {
 	this.setChanged();
 };
 
-BannerWidget.prototype.makeWikitext = function () {
+BannerWidget.prototype.makeWikitext = function ( options ) {
+	options = options || {};
 	// For non-shell banners, if nothing changed and original wikitext is available, reuse it.
-	// For shell banner we must always render from current state so that temporary param1 (inner content)
-	// added by BannerListWidget.makeWikitext is respected.
-	const includeClass = canRateBanner( this );
+	// Shells always use current state and the inner content supplied by the list.
+	const includeClass = typeof options.includeClass === 'boolean' ? options.includeClass : canRateBanner( this );
 	if ( includeClass && !this.isShellTemplate && !this.changed && this.wikitext && formatClassRating( this.originalClassValue ) === this.originalClassValue ) {
 		return this.wikitext;
 	}
-	const pipe = this.pipeStyle || '|';
-	const equals = this.equalsStyle || '=';
 	const classItem = ( this.hasClassRatings || this.isShellTemplate ) && this.classDropdown.getMenu().findSelectedItem();
-	const classVal = formatClassRating( classItem && classItem.getData() );
+	const classVal = formatClassRating( Object.prototype.hasOwnProperty.call( options, 'classValue' ) ? options.classValue : classItem && classItem.getData() );
 	const importanceItem = this.hasImportanceRatings && this.importanceDropdown.getMenu().findSelectedItem();
 	const importanceVal = !this.importanceChanged && this.originalImportanceValue ? this.originalImportanceValue : importanceItem && importanceItem.getData();
 
-	return ( '{{' +
-		this.name +
-		( includeClass && ( this.hasClassRatings || this.isShellTemplate ) && classVal ? `${ pipe }${ this.classParamName || 'class' }${ equals }${ classVal }` : '' ) +
-		( this.hasImportanceRatings && importanceVal !== null ? `${ pipe }${ this.importanceParamName || 'importance' }${ equals }${ importanceVal || '' }` : '' ) +
-		this.parameterList.getParameterItems()
-			.filter( ( parameter ) => !( isClassParameter( this, parameter.name ) &&
-				( !includeClass || this.hasClassRatings || this.isShellTemplate ) ) )
-			.map( ( parameter ) => {
-				if ( this.isShellTemplate && String( parameter.name ) === '1' ) {
-					// Render shell inner content as positional parameter (no "1=")
-					return pipe + ( parameter.value || '' );
-				}
-				return parameter.makeWikitext( pipe, equals );
-			} )
-			.join( '' ) +
-		this.endBracesStyle )
-		.replace( /\n+}}$/, '\n}}' ); // avoid empty line at end like [[Special:Diff/925982142]]
+	const parameters = [];
+	if ( includeClass && ( this.hasClassRatings || this.isShellTemplate ) && classVal ) {
+		parameters.push( { name: this.classParamName || 'class', value: classVal } );
+	}
+	if ( this.hasImportanceRatings && importanceVal !== null ) {
+		parameters.push( { name: this.importanceParamName || 'importance', value: importanceVal } );
+	}
+	this.parameterList.getParameterItems().forEach( ( parameter ) => {
+		if ( isClassParameter( this, parameter.name ) && ( !includeClass || this.hasClassRatings || this.isShellTemplate ) ) {
+			return;
+		}
+		parameters.push( { name: parameter.name, value: parameter.value, isInvalid: parameter.isInvalid } );
+	} );
+	if ( this.isShellTemplate && Object.prototype.hasOwnProperty.call( options, 'innerContent' ) ) {
+		parameters.push( { name: '1', value: options.innerContent } );
+	}
+	return serializeTemplate( {
+		name: this.name,
+		parameters,
+		pipeStyle: this.pipeStyle,
+		equalsStyle: this.equalsStyle,
+		endBracesStyle: this.endBracesStyle,
+		isShellTemplate: this.isShellTemplate
+	} );
 };
 
 BannerWidget.prototype.setPreferences = function ( prefs ) {

@@ -50,7 +50,7 @@ To automatically group three or more projects, use `autoCreate: false, minProjec
 
 ## Testing a patch and publishing
 
-1. Run `npm ci`, `npm run test:regression`, and `npm run build:dev`.
+1. Run `npm ci`, `npm run test:ooui`, and `npm run build:dev`.
 2. Copy `dist/rater-core.js` to a sandbox JavaScript page you control on MediaWiki.org (for example, `User:YOUR_USERNAME/rater-core-test.js`).
 3. Copy `dist/rater.js` to your sandbox loader page. Change its `title` constant to the sandbox core page, retaining the MediaWiki.org host.
 4. Import that sandbox loader from your local wiki's common.js and check loading, preview, diff, save, and closing the dialog. Use a test talk page or a sandbox.
@@ -61,7 +61,7 @@ For publication, run `npm run build:prod`, copy `dist/rater-core.js` to `User:In
 
 The inherited [application diagram](architecture_main.svg) and [OOUI diagram](architecture_ooui.svg) describe upstream Rater v2. The current fork's modules are listed below; its loading dialog uses Vue/Codex.
 
-The regression suite uses real jQuery and OOUI to check dialog actions, assessment policies, TemplateData caching, and wikitext edits. The older `npm run test:run` suite also remains available; it had 23 failing files before this synchronization, mostly importing the removed `src/utils/Template.js` and using incomplete widget mocks.
+The regression suite uses real jQuery and OOUI to check dialog actions, assessment policies, TemplateData caching, and wikitext edits. `npm run test:regression` checks the current OOUI version; `npm run test:ooui` repeats it against 0.53.0, 0.53.2 and 0.54.2. See the [2025–2026 DOM compatibility review](docs/dom-compatibility-2026.md) for platform changes, fixes and coverage limits. The older `npm run test:run` suite also remains available; it had 23 failing files before this synchronization, mostly importing the removed `src/utils/Template.js` and using incomplete widget mocks.
 
 ## 🏗️ Project Structure
 

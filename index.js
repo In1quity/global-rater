@@ -18,20 +18,10 @@ $.when(
 	// Add a portlet link that will load the main script and its dependencies on demand
 	const linkId = 'ca-rater';
 	if ( !document.getElementById( linkId ) ) {
-		mw.util.addPortletLink( 'p-cactions', '#', 'Rater', linkId, 'Rate quality and importance', '5' );
-		$( '#' + linkId ).on( 'click', ( event ) => {
+		const portletLink = mw.util.addPortletLink( 'p-cactions', '#', 'Rater', linkId, 'Rate quality and importance', '5' ) ||
+			mw.util.addPortletLink( 'p-tb', '#', 'Rater', linkId, 'Rate quality and importance', '5' );
+		$( portletLink ).on( 'click', ( event ) => {
 			event.preventDefault();
-			// Prevent duplicate button creation by returning existing link for the same id
-			const originalAddPortletLink = mw.util.addPortletLink;
-			mw.util.addPortletLink = function ( portlet, href, text, id, tooltip, accesskey ) {
-				if ( id === linkId ) {
-					const existing = document.getElementById( linkId );
-					if ( existing ) {
-						return existing;
-					}
-				}
-				return originalAddPortletLink.apply( this, arguments );
-			};
 			// Load required modules first, then load the main script
 			const reqModules = [
 				'mediawiki.api', 'mediawiki.Title',
