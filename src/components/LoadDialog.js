@@ -24,6 +24,11 @@ export const openLoadDialogCodex = function ( options ) {
 			return {
 				open: true,
 				title: String( i18n.t( 'loading-title' ) ),
+				defaultAction: { label: i18n.t( 'button-close' ) },
+				loadingLabel: i18n.t( 'loading-title' ),
+				initLabel: i18n.t( 'loading-init' ),
+				doneLabel: i18n.t( 'loading-done' ),
+				failedLabel: i18n.t( 'loading-failed' ),
 				// Indeterminate progress: Codex ProgressBar
 				tasks: tasks.map( ( label, index ) => ( { label, done: false, error: null, hidden: index === 6 && !oresVisible } ) ),
 				canClose: false
@@ -35,11 +40,11 @@ export const openLoadDialogCodex = function ( options ) {
 			}
 		},
 		template: `
-<cdx-dialog v-model:open="open" :use-close-button="false" :title="title" :default-action="{label: '${ i18n.t( 'button-close' ) }'}" @default="onClose">
+<cdx-dialog v-model:open="open" :use-close-button="false" :title="title" :default-action="defaultAction" @default="onClose">
 	<div>
-		<div style="margin-bottom:8px"><cdx-progress-bar :inline="true" aria-label="Loading" /></div>
-		<p class="rater-loadDialog-initLabel"><strong>${ i18n.t( 'loading-init' ) }</strong></p>
-		<p v-for="t in displayedTasks" :key="t.label" class="rater-loadDialog-taskLabel">{{ t.label }}<span v-if="t.done"> Done!</span><span v-else-if="t.error"> Failed. {{ t.error }}</span></p>
+		<div style="margin-bottom:8px"><cdx-progress-bar :inline="true" :aria-label="loadingLabel" /></div>
+		<p class="rater-loadDialog-initLabel"><strong>{{ initLabel }}</strong></p>
+		<p v-for="t in displayedTasks" :key="t.label" class="rater-loadDialog-taskLabel">{{ t.label }}<span v-if="t.done"> {{ doneLabel }}</span><span v-else-if="t.error"> {{ failedLabel }} {{ t.error }}</span></p>
 	</div>
 </cdx-dialog>
 		`,

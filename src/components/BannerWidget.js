@@ -50,8 +50,8 @@ function BannerWidget( template, config ) {
 	/* --- PROPS --- */
 	this.paramData = template.paramData;
 	this.paramAliases = template.paramAliases || {};
-	this.classParamName = template.classParamName || 'class';
-	this.importanceParamName = template.importanceParamName || 'importance';
+	this.classParamName = template.classParamName || globalConfig.bannerDefaults.classParamName;
+	this.importanceParamName = template.importanceParamName || globalConfig.bannerDefaults.importanceParamName;
 	this.parameterSuggestions = template.parameterSuggestions || [];
 	this.name = template.name;
 	this.wikitext = template.wikitext;
@@ -62,7 +62,7 @@ function BannerWidget( template, config ) {
 	this.redirectTargetMainText = template.redirectTarget && template.redirectTarget.getMainText();
 	this.isShellTemplate = isShellTemplate( template );
 	if ( this.isShellTemplate ) {
-		this.classParamName = globalConfig.shell.classParamName || 'class';
+		this.classParamName = globalConfig.shell.classParamName;
 	}
 	this.changed = template.parameters.some( ( parameter ) => parameter.autofilled ); // initially false, unless some parameters were autofilled
 	this.hasClassRatings = template.classes && template.classes.length;
@@ -149,7 +149,7 @@ function BannerWidget( template, config ) {
 			},
 			$overlay: this.$overlay
 		} );
-		const classParam = template.parameters.find( ( parameter ) => isNameOrAliasOf( parameter.name, String( template.classParamName || 'class' ).toLowerCase(), template.paramAliases ) );
+		const classParam = template.parameters.find( ( parameter ) => isNameOrAliasOf( parameter.name, String( this.classParamName ).toLowerCase(), template.paramAliases ) );
 		const preClass = formatClassRating( selectInitialValue( template.classes, classParam && classParam.value, classMask ) );
 		if ( preClass && !template.classes.map( formatClassRating ).includes( preClass ) ) {
 			this.classDropdown.getMenu().addItems( [ new OO.ui.MenuOptionWidget( { data: preClass, label: displayClassRating( preClass ) } ) ] );
@@ -174,7 +174,7 @@ function BannerWidget( template, config ) {
 			},
 			$overlay: this.$overlay
 		} );
-		const importanceParam = template.parameters.find( ( parameter ) => isNameOrAliasOf( parameter.name, String( template.importanceParamName || 'importance' ).toLowerCase(), template.paramAliases ) );
+		const importanceParam = template.parameters.find( ( parameter ) => isNameOrAliasOf( parameter.name, String( this.importanceParamName ).toLowerCase(), template.paramAliases ) );
 		const preImp = selectInitialValue( template.importances, importanceParam && importanceParam.value, importanceMask );
 		if ( preImp && !template.importances.includes( preImp ) ) {
 			this.importanceDropdown.getMenu().addItems( [ new OO.ui.MenuOptionWidget( { data: preImp, label: preImp } ) ] );
@@ -205,8 +205,8 @@ function BannerWidget( template, config ) {
 				}
 				return !isClassParameter( this, param.name );
 			}
-			const classCanon = String( template.classParamName || 'class' ).toLowerCase();
-			const impCanon = String( template.importanceParamName || 'importance' ).toLowerCase();
+			const classCanon = String( this.classParamName ).toLowerCase();
+			const impCanon = String( this.importanceParamName ).toLowerCase();
 			return !( ( this.hasClassRatings && isNameOrAliasOf( param.name, classCanon, template.paramAliases ) ) ||
 				( this.hasImportanceRatings && isNameOrAliasOf( param.name, impCanon, template.paramAliases ) ) );
 		},
@@ -427,7 +427,7 @@ BannerWidget.prototype.onAddParameterNameEnter = function () {
 BannerWidget.prototype.onAddParameterValueChange = function () {
 	const { validName, validValue, isAutovalue } = this.getAddParametersInfo();
 	this.addParameterButton.setDisabled( !validName || !validValue );
-	this.addParameterLayout.setNotices( validName && isAutovalue ? [ 'Parameter value will be autofilled' ] : [] );
+	this.addParameterLayout.setNotices( validName && isAutovalue ? [ i18n.t( 'notice-parameter-autofilled' ) ] : [] );
 };
 
 BannerWidget.prototype.onAddParameterValueEnter = function () {
@@ -526,10 +526,10 @@ BannerWidget.prototype.makeWikitext = function ( options ) {
 
 	const parameters = [];
 	if ( includeClass && ( this.hasClassRatings || this.isShellTemplate ) && classVal ) {
-		parameters.push( { name: this.classParamName || 'class', value: classVal } );
+		parameters.push( { name: this.classParamName, value: classVal } );
 	}
 	if ( this.hasImportanceRatings && importanceVal !== null ) {
-		parameters.push( { name: this.importanceParamName || 'importance', value: importanceVal } );
+		parameters.push( { name: this.importanceParamName, value: importanceVal } );
 	}
 	this.parameterList.getParameterItems().forEach( ( parameter ) => {
 		if ( isClassParameter( this, parameter.name ) && ( !includeClass || this.hasClassRatings || this.isShellTemplate ) ) {

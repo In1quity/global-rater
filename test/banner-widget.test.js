@@ -1,12 +1,14 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import '../test/setup.js';
 import BannerWidget from '../src/components/BannerWidget.js';
+import config, { createWikiConfig } from '../src/constants/config.js';
 
 describe('BannerWidget', () => {
     let mockTemplate;
     let mockConfig;
 
     beforeEach(() => {
+        Object.assign(config, createWikiConfig('enwiki', '', config.mw));
         mockTemplate = {
             name: 'WikiProject Biology',
             wikitext: '{{WikiProject Biology|class=B|importance=Mid}}',

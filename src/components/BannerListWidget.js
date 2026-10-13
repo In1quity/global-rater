@@ -121,7 +121,7 @@ BannerListWidget.prototype.syncShellTemplateWithBiographyBanner = function ( bio
 
 BannerListWidget.prototype.addShellTemplateIfNeeeded = function ( manual ) {
 	const projectCount = this.items.filter( ( banner ) => !banner.isShellTemplate ).length;
-	if ( !projectCount || ( !manual && !shouldCreateShell( projectCount, this.preferences ) ) || this.shellCreationPromise ) {
+	if ( !config.shellTemplate || !projectCount || ( !manual && !shouldCreateShell( projectCount, this.preferences ) ) || this.shellCreationPromise ) {
 		return this;
 	}
 	if (
@@ -206,10 +206,8 @@ BannerListWidget.prototype.autofillClassRatings = function () {
 	if ( uniqueClassRatings.length === 1 && ( this.preferences.autofillClassFromOthers || forShell ) ) {
 		autoClass = uniqueClassRatings[ 0 ];
 	} else if ( uniqueClassRatings.length === 0 && this.preferences.autofillClassFromOres && this.oresClass ) {
-		// Don't autofill above C-class
-		switch ( this.oresClass ) {
-			case 'Stub': case 'Start': case 'C': case 'List':
-				autoClass = this.oresClass;
+		if ( config.ores.autofillClasses.map( formatClassRating ).includes( formatClassRating( this.oresClass ) ) ) {
+			autoClass = formatClassRating( this.oresClass );
 		}
 	} else {
 		// nothing to do
@@ -248,13 +246,19 @@ BannerListWidget.prototype.autofillImportanceRatings = function () {
 	}
 	// TODO: Should try to find a smarter, banner-specific way of determining importance.
 	// Maybe do something with  ORES's "drafttopic" model.
-	const autoImportance = 'Low';
+	const autoImportance = config.bannerDefaults.lowImportance;
+	if ( !autoImportance ) {
+		return;
+	}
 	this.items.forEach( ( banner ) => {
 		if ( !banner.hasImportanceRatings || banner.originalImportanceValue ) {
 			return;
 		}
 		const importanceItem = banner.importanceDropdown.getMenu().findSelectedItem();
 		if ( importanceItem && importanceItem.getData() ) {
+			return;
+		}
+		if ( !banner.importanceDropdown.getMenu().findItemFromData( autoImportance ) ) {
 			return;
 		}
 		banner.importanceDropdown.getMenu().selectItemByData( autoImportance );

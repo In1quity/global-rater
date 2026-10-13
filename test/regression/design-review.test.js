@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from 'vitest';
-import config from '../../src/constants/config.js';
+import config, { createWikiConfig } from '../../src/constants/config.js';
 import { parseTemplates } from '../../src/utils/parseTemplates.js';
 import { Template } from '../../src/utils/models/TemplateModel.js';
 import { loadParamDataAndSuggestions } from '../../src/services/templateParams.js';
@@ -24,6 +24,7 @@ function list(items) {
 	return result;
 }
 beforeEach(() => {
+	Object.assign(config, createWikiConfig('enwiki', '', config.mw));
 	localStorage.clear();
 	API.get.mockReset();
 	config.forceBypassCache = false;

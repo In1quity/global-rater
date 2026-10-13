@@ -2,6 +2,7 @@ import * as cache from '@services/cache.js';
 import API from '@services/api.js';
 import config from '@constants/config.js';
 import logger from '@services/logger.js';
+import i18n from '@services/i18n.js';
 // <nowiki>
 
 const log = logger.get( 'templateData' );
@@ -60,7 +61,7 @@ const getTemplateData = function ( prefixedTitle ) {
 // Includes: paramData, parameterSuggestions, paramAliases, classParamName, importanceParamName, notemplatedata
 const getTemplateDataDetails = function ( prefixedTitle ) {
 	const title = String( prefixedTitle || '' );
-	const key = title + '-params-v2';
+	const key = title + '-params-v3-' + JSON.stringify( config.assessmentParameters ) + '-' + i18n.getLangCode();
 	const cached = cache.read( key );
 	if ( cached && cached.value && !cached.value.notemplatedata && cached.staleDate && !config.forceBypassCache ) {
 		return $.Deferred().resolve( cached.value );
@@ -71,8 +72,8 @@ const getTemplateDataDetails = function ( prefixedTitle ) {
 			paramData: ( base && base.params ) || ( config && config.defaultParameterData ) || {},
 			parameterSuggestions: [],
 			paramAliases: {},
-			classParamName: 'class',
-			importanceParamName: 'importance'
+			classParamName: config.bannerDefaults.classParamName,
+			importanceParamName: config.bannerDefaults.importanceParamName
 		};
 		// Build aliases map from paramData
 		$.each( result.paramData, ( paraName, paraData ) => {
@@ -82,10 +83,11 @@ const getTemplateDataDetails = function ( prefixedTitle ) {
 				} );
 			}
 			// Try to extract allowed values from description when not provided explicitly
-			if ( paraData && paraData.description && /\[.*'.+?'.*?\]/.test( paraData.description.en ) ) {
+			const description = paraData && Object.values( paraData.description || {} ).find( ( text ) => /\[.*'.+?'.*?\]/.test( text ) );
+			if ( paraData && !paraData.allowedValues && description ) {
 				try {
 					const allowedVals = JSON.parse(
-						paraData.description.en
+						description
 							.replace( /^.*\[/, '[' )
 							.replace( /"/g, '\\"' )
 							.replace( /'/g, '"' )
@@ -115,18 +117,8 @@ const getTemplateDataDetails = function ( prefixedTitle ) {
 			}
 			return null;
 		};
-		let className = findByNameOrAlias( 'class' );
-		let importanceName = findByNameOrAlias( 'importance' );
-		if ( !className ) {
-			const keys = Object.keys( result.paramData || {} );
-			className = keys.find( ( k ) => /^(?:class|класс|уровень)$/i.test( String( k ) ) );
-		}
-		if ( !importanceName ) {
-			const keys2 = Object.keys( result.paramData || {} );
-			importanceName = keys2.find( ( k ) => /^(?:importance|важность)$/i.test( String( k ) ) );
-		}
-		result.classParamName = className || 'class';
-		result.importanceParamName = importanceName || 'importance';
+		result.classParamName = config.assessmentParameters.class.map( findByNameOrAlias ).find( Boolean ) || config.bannerDefaults.classParamName;
+		result.importanceParamName = config.assessmentParameters.importance.map( findByNameOrAlias ).find( Boolean ) || config.bannerDefaults.importanceParamName;
 
 		// Build suggestions list using paramOrder if present
 		const order = ( base && base.paramOrder ) || Object.keys( result.paramData );
@@ -136,7 +128,7 @@ const getTemplateDataDetails = function ( prefixedTitle ) {
 		result.parameterSuggestions = filtered.map( ( paramName ) => {
 			const optionObject = { data: paramName };
 			const pd = result.paramData[ paramName ];
-			const label = pd && pd.label && pd.label.en;
+			const label = i18n.metadataText( pd, 'label' );
 			if ( label ) {
 				optionObject.label = label + ' (|' + paramName + '=)';
 			}

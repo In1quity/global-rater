@@ -29,8 +29,8 @@ const loadParamDataAndSuggestions = function ( template ) {
 		template.paramData = details.paramData || {};
 		template.parameterSuggestions = details.parameterSuggestions || [];
 		template.paramAliases = details.paramAliases || {};
-		template.classParamName = details.classParamName || 'class';
-		template.importanceParamName = details.importanceParamName || 'importance';
+		template.classParamName = details.classParamName;
+		template.importanceParamName = details.importanceParamName;
 	} );
 };
 

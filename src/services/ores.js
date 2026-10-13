@@ -6,10 +6,10 @@ import config from '@constants/config.js';
 // Fetch ORES articlequality prediction for a revision and map to UI-friendly summary
 const getPrediction = function ( latestRevId, opts ) {
 	const options = opts || {};
-	const wiki = options.wiki || ( config && config.ores && config.ores.wiki ) || 'enwiki';
-	const tiers = ( options.tiers && Array.isArray( options.tiers ) ) ? options.tiers : ( ( config && config.ores && Array.isArray( config.ores.topTierClasses ) ) ? config.ores.topTierClasses : [ 'FA', 'GA' ] );
-	const baseline = options.baseline || ( ( config && config.ores && config.ores.baselineClass ) || 'B' );
-	if ( !latestRevId ) {
+	const wiki = options.wiki || config.ores.wiki;
+	const tiers = options.tiers || config.ores.topTierClasses;
+	const baseline = options.baseline || config.ores.baselineClass;
+	if ( !latestRevId || !wiki || ( !config.ores.enabled && !options.wiki ) ) {
 		return Promise.resolve( null );
 	}
 	return API.getORES( latestRevId, wiki )

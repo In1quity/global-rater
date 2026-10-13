@@ -1,4 +1,5 @@
 // <nowiki>
+import i18n from '@services/i18n.js';
 
 // Lightweight Codex/Vue loader and mounting helpers inspired by sm/maintenance-core.js
 
@@ -13,7 +14,7 @@ export const ensureCodex = function () {
 		return Promise.resolve( cachedCodex );
 	}
 	if ( typeof mw === 'undefined' || !mw.loader || typeof mw.loader.using !== 'function' ) {
-		return Promise.reject( new Error( 'ResourceLoader not available' ) );
+		return Promise.reject( new Error( i18n.t( 'error-resource-loader' ) ) );
 	}
 	return mw.loader.using( [ 'vue', '@wikimedia/codex' ] ).then( () => {
 		const VueMod = mw.loader.require( 'vue' );
@@ -59,9 +60,13 @@ export const mountCodexApp = function ( appOptions ) {
 export const codexConfirm = function ( messageHtml, titleText ) {
 	return ensureCodex().then( () => mountCodexApp( {
 		data() {
-			return { open: true, title: titleText || '', msg: messageHtml || '' };
+			return {
+				open: true, title: titleText || '', msg: messageHtml || '',
+				primaryAction: { label: i18n.t( 'button-ok' ) },
+				defaultAction: { label: i18n.t( 'action-cancel' ) }
+			};
 		},
-		template: '<cdx-dialog v-model:open="open" :use-close-button="true" :title="title" @default="onCancel" @close="onCancel" :primary-action="{label: \"OK\"}" :default-action="{label: \"Cancel\"}" @primary="onOk"><div v-html="msg"></div></cdx-dialog>',
+		template: '<cdx-dialog v-model:open="open" :use-close-button="true" :title="title" @default="onCancel" @close="onCancel" :primary-action="primaryAction" :default-action="defaultAction" @primary="onOk"><div v-html="msg"></div></cdx-dialog>',
 		methods: {
 			onOk() {
 				this.open = false;

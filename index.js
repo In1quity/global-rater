@@ -3,6 +3,10 @@ $.when(
 	$.ready
 ).then( () => {
 	const conf = mw.config.get( [ 'wgNamespaceNumber', 'wgPageName' ] );
+	const translations = /* RATER_LOADER_I18N */ {};
+	const fallbackLanguage = /* RATER_LOADER_FALLBACK_LANGUAGE */ '';
+	const language = mw.config.get( 'wgUserLanguage' ) || fallbackLanguage;
+	const labels = translations[ language ] || translations[ language.split( '-' )[ 0 ] ] || translations[ fallbackLanguage ] || {};
 	// Do not operate on Special: pages, nor on non-existent pages or their talk pages
 	if ( conf.wgNamespaceNumber < 0 || $( 'li.new[id|=ca-nstab]' ).length ) {
 		return;
@@ -18,8 +22,8 @@ $.when(
 	// Add a portlet link that will load the main script and its dependencies on demand
 	const linkId = 'ca-rater';
 	if ( !document.getElementById( linkId ) ) {
-		const portletLink = mw.util.addPortletLink( 'p-cactions', '#', 'Rater', linkId, 'Rate quality and importance', '5' ) ||
-			mw.util.addPortletLink( 'p-tb', '#', 'Rater', linkId, 'Rate quality and importance', '5' );
+		const portletLink = mw.util.addPortletLink( 'p-cactions', '#', labels[ 'app-portlet-text' ] || 'Rater', linkId, labels[ 'app-portlet-tooltip' ] || '', '5' ) ||
+			mw.util.addPortletLink( 'p-tb', '#', labels[ 'app-portlet-text' ] || 'Rater', linkId, labels[ 'app-portlet-tooltip' ] || '', '5' );
 		$( portletLink ).on( 'click', ( event ) => {
 			event.preventDefault();
 			// Load required modules first, then load the main script

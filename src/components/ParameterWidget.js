@@ -1,5 +1,6 @@
 import { normaliseYesNo, filterAndMap } from '@utils/util.js';
 import HorizontalLayoutWidget from './HorizontalLayoutWidget.js';
+import i18n from '@services/i18n.js';
 // <nowiki>
 
 function ParameterWidget( parameter, paramData, config ) {
@@ -14,7 +15,7 @@ function ParameterWidget( parameter, paramData, config ) {
 	this.autofilled = parameter.autofilled;
 	this.isInvalid = ( parameter.value === null || typeof parameter.value === 'undefined' );
 	this.paramData = paramData || {};
-	this.allowedValues = this.paramData.allowedValues || [];
+	this.allowedValues = ( this.paramData.allowedValues || [] ).slice();
 	this.isRequired = this.paramData.required;
 	this.isSuggested = this.paramData.suggested;
 
@@ -60,7 +61,7 @@ function ParameterWidget( parameter, paramData, config ) {
 
 	this.confirmButton = new OO.ui.ButtonWidget( {
 		icon: 'check',
-		label: 'Done',
+		label: i18n.t( 'button-done' ),
 		framed: false,
 		flags: 'progressive'
 	} );
@@ -68,13 +69,13 @@ function ParameterWidget( parameter, paramData, config ) {
 
 	this.cancelButton = new OO.ui.ButtonWidget( {
 		icon: 'undo',
-		label: 'Cancel',
+		label: i18n.t( 'action-cancel' ),
 		framed: false
 	} );
 
 	this.deleteButton = new OO.ui.ButtonWidget( {
 		icon: this.isRequired ? 'restore' : 'trash',
-		label: this.isRequired ? 'Required parameter' : 'Delete',
+		label: i18n.t( this.isRequired ? 'parameter-required' : 'button-delete' ),
 		framed: false,
 		flags: 'destructive',
 		disabled: this.isRequired
@@ -100,7 +101,7 @@ function ParameterWidget( parameter, paramData, config ) {
 	this.editLayout = new OO.ui.FieldLayout( this.editLayoutControls, {
 		label: this.name + ' =',
 		align: 'top',
-		help: this.paramData.description && this.paramData.description.en || false,
+		help: i18n.metadataText( this.paramData, 'description' ) || false,
 		helpInline: true
 	} ).toggle();
 	this.editLayout.$element.find( 'label.oo-ui-inline-help' ).addClass( 'rater-parameterWidget-editLayoutHelp' );
@@ -109,7 +110,7 @@ function ParameterWidget( parameter, paramData, config ) {
 
 	this.invalidIcon = new OO.ui.IconWidget( {
 		icon: 'block',
-		title: 'Invalid parameter: no value specified!',
+		title: i18n.t( 'parameter-invalid' ),
 		flags: 'destructive'
 	} ).toggle( this.isInvalid );
 	this.invalidIcon.$element.addClass( 'rater-parameterWidget-invalidIcon' );
@@ -123,7 +124,7 @@ function ParameterWidget( parameter, paramData, config ) {
 	this.fullLabel.$element.addClass( 'rater-parameterWidget-fullLabel' );
 	this.autofilledIcon = new OO.ui.IconWidget( {
 		icon: 'robot',
-		title: 'Autofilled by Rater',
+		title: i18n.t( 'parameter-autofilled' ),
 		flags: 'progressive'
 	} ).toggle( this.autofilled );
 	this.autofilledIcon.$element.addClass( 'rater-parameterWidget-autofilledIcon' );

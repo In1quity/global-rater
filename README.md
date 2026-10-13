@@ -16,13 +16,15 @@ The upstream [user guide](https://en.wikipedia.org/wiki/User:Evad37/rater) descr
 
 ## Where Rater looks for data
 
-WikiProject banners are discovered from the categories in `config.categories`, notably `withRatings`. On English Wikipedia this is [Category:WikiProject banners with quality assessment](https://en.wikipedia.org/wiki/Category:WikiProject_banners_with_quality_assessment). Task forces and other parameters come from each banner's [TemplateData](https://en.wikipedia.org/wiki/User:Evad37/rater#TemplateData_quick_tutorial).
+WikiProject banners are discovered from the categories in the current wiki's JSON profile, notably `categories.withRatings`. English Wikipedia uses [Category:WikiProject banners with quality assessment](https://en.wikipedia.org/wiki/Category:WikiProject_banners_with_quality_assessment); Russian Wikipedia uses [Категория:Шаблоны проектов:Баннеры](https://ru.wikipedia.org/wiki/Категория:Шаблоны_проектов:Баннеры). Subcategories and API continuation are followed. Task forces and other parameters come from each banner's [TemplateData](https://en.wikipedia.org/wiki/User:Evad37/rater#TemplateData_quick_tutorial).
 
-For another wiki, define its categories, banner prefixes, shell template and parameter values with `window.RATER_CONFIG`, or supply JSON through `window.RATER_CONFIG_URL`, before loading the script.
+Site rules live in `rater/data/<wgDBname>.json` (currently `enwiki.json` and `ruwiki.json`), with neutral shared defaults in `rater/data/default.json`. Interface messages live separately in `i18n/<language>.json`. The build discovers both directories automatically and bundles their data; adding a wiki or a translation does not require another JavaScript branch. An unknown wiki receives the neutral profile. See the [configuration guide and verified Wikidata category mappings](docs/wiki-configuration.md) (in Russian) for the file structure, field reference, and publishing procedure.
+
+Existing `window.RATER_CONFIG` and `window.RATER_CONFIG_URL` overrides remain supported. The object takes priority when both are set. The URL may contain `{wiki}` and return either plain JSON or a MediaWiki revisions API response. Profiles are bundled by default; publishing a separate JSON page requires explicitly connecting it with `RATER_CONFIG_URL`.
 
 ## Per-wiki shell and assessment settings
 
-These site settings are merged into the built-in defaults before the interface opens. The wiki is detected from `wgDBname`, with the local server as a fallback; the MediaWiki.org host of the script does not determine the policy.
+The selected JSON profile is merged into the neutral defaults before the interface opens, followed by optional external overrides. The wiki is detected from `wgDBname`, with the local server as a fallback; the MediaWiki.org host of the script does not determine the policy. The interface language remains independent of the wiki's template rules.
 
 | Setting | Meaning | Russian Wikipedia default | English Wikipedia default |
 | --- | --- | --- | --- |
@@ -32,11 +34,12 @@ These site settings are merged into the built-in defaults before the interface o
 | `shell.classParamName` | Name of the shell's assessment parameter when shell assessments are enabled. Banner parameter names come from TemplateData. | `"уровень"` | `"class"` |
 | `classFormat` | `"arabic"` prefers 1–10, `"roman"` prefers I–X, `"native"` preserves native grades. Letter grades such as FA/B/C are preserved. | `"arabic"` | `"native"` |
 | `classDisplayFormat` | Notation used for class labels in the interface, independently of the saved notation. | `"roman"` | `"native"` |
-| `shell.parameters` | Complete array of parameter definitions for this wiki's shell. Each has a `name` and optional TemplateData-style `label`, `aliases`, `suggestedvalues`, `required`, `suggested`, and `autovalue`. Arrays replace the defaults rather than merging their fields. | `1`, `collapsed`, `header`, `blp` (alias `living`), `blpo`, `activepol` | `1`, `class`, `blp` (alias `living`), `collapsed`, `listas`, `vital` |
+| `shell.parameters` | Complete array of parameter definitions for this wiki's shell. Each has a `name` and optional `labelKey`/`descriptionKey` referring to the dictionaries, or TemplateData-style `label`, `aliases`, `suggestedvalues`, `required`, `suggested`, and `autovalue`. Arrays replace the defaults rather than merging their fields. | `1`, `collapsed`, `header`, `blp` (alias `living`), `blpo`, `activepol` | `1`, `class`, `blp` (alias `living`), `collapsed`, `listas`, `vital` |
 | `shell.aliases` | Additional names of the shell, excluded from project search. Redirect aliases are also fetched from the wiki. | `[]` | `[]` |
 | `shell.biographyBannerNames` / `shell.biographyParameters` | Optional biography banner names and supported `{ source, target, normalise }` parameter mappings. Mappings never inject a field absent from the shell schema. | Disabled | Biography mappings for `blp` and `listas` |
 | `editSummaryLanguage` | Language of the edit summary, independent of the user's interface language. | `"ru"` | `"en"` |
 | `defaultParameterData` | Banner metadata used when TemplateData is unavailable. Configure only fields supported on the wiki; `suggested` and `autovalue` can add fields automatically. Shells use their own schema. | `уровень`, `важность`; no automatic extra fields | English project parameter defaults |
+| `assessmentParameters` | Candidate names and aliases for identifying assessment parameters in TemplateData. | `уровень`/`class`/`класс`, `важность`/`importance` | `class`, `importance` |
 
 For example, the Russian policy can be explicitly configured before importing the global loader:
 
@@ -70,7 +73,7 @@ window.RATER_CONFIG = {
 		parameters: [
 			{ name: '1' },
 			{ name: 'quality' },
-			{ name: 'title', label: { en: 'Heading' } }
+			{ name: 'title', labelKey: 'parameter-shell-header' }
 		],
 		biographyBannerNames: [],
 		biographyParameters: []
@@ -91,7 +94,7 @@ Ordinary banners without TemplateData use `defaultParameterData`. On Russian Wik
 
 Testwiki's upstream examples include WikiProject Africa, Belgium, and China. Additional templates must be imported, included in the configured banner categories, and supplied with working dependencies and TemplateData.
 
-For publication, run `npm run build:prod`, copy `dist/rater-core.js` to `User:Iniquity/rater-core.js` on MediaWiki.org, then copy `dist/rater.js` to `User:Iniquity/rater.js`. Publishing requires edit access to those pages. The global build uses `rater-core.js`; the upstream `rater.min.js` deployment instructions refer to its older build system.
+For publication, run `npm run build:prod`, copy `dist/rater-core.js` to `User:Iniquity/rater-core.js` on MediaWiki.org, then copy `dist/rater.js` to `User:Iniquity/rater.js`. Publishing requires edit access to those pages. Optional separately maintained profiles can be published as `User:Iniquity/rater/data/<wgDBname>.json` and connected through `RATER_CONFIG_URL`; bundled profiles need no additional requests. The global build uses `rater-core.js`; the upstream `rater.min.js` deployment instructions refer to its older build system.
 
 The inherited [application diagram](architecture_main.svg) and [OOUI diagram](architecture_ooui.svg) describe upstream Rater v2. The current fork's modules are listed below; its loading dialog uses Vue/Codex.
 
@@ -140,6 +143,7 @@ The project uses a modern, scalable architecture with clear separation of concer
 │   ├── types/              # TypeScript Types (future)
 │   └── App.js              # Main application entry point
 ├── dist/                 # Build output
+├── rater/data/           # JSON rules and template schemas for each wiki
 └── i18n/                 # Internationalization
 ```
 
@@ -181,6 +185,8 @@ The source code is bundled, transpiled, and minified using `npm run build`. This
   - Creates a portlet button that lazy-loads the main application on demand
   - Only loads `mediawiki.util` at startup; other modules are loaded when the button is clicked
 - **`dist/rater-core.js`** - Main application bundle
+- **`dist/rater/data/*.json`** - Copies of the bundled wiki profiles for optional separate publication
+- **`dist/i18n/*.json`** - Copies of the bundled translation dictionaries
 
 ### 🔧 Tooling
 - **eslint** (v9) with flat config for ES2017 linting

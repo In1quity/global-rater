@@ -69,7 +69,7 @@ try {
 		if ( config && config.script && config.script.version ) {
 			API.updateUserAgent( config.script.version );
 		}
-		return i18n.load();
+		return Promise.all( [ i18n.load(), i18n.load( config.editSummaryLanguage ) ] );
 	} ).then( () => {
 		log.info( 'i18n loaded' );
 		startApp();

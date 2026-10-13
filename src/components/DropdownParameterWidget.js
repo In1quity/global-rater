@@ -1,4 +1,5 @@
 // <nowiki>
+import i18n from '@services/i18n.js';
 
 function DropdownParameterWidget( config ) {
 	// Configuration initialization
@@ -14,7 +15,7 @@ function DropdownParameterWidget( config ) {
 	this.autofilled = !!config.autofilled;
 	this.autofilledIcon = new OO.ui.IconWidget( {
 		icon: 'robot',
-		title: 'Autofilled by Rater',
+		title: i18n.t( 'parameter-autofilled' ),
 		flags: 'progressive'
 	} ).toggle( this.autofilled );
 	this.autofilledIcon.$element.addClass( 'rater-dropdownParameterWidget-autofilledIcon' );

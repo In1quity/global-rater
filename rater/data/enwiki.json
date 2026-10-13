@@ -1,0 +1,382 @@
+{
+	"script": {
+		"advert": " ([[WP:RATER#{version}|Rater]])",
+		"titlePage": "WP:RATER",
+		"talkPage": "WT:RATER"
+	},
+	"ores": {
+		"wiki": "enwiki",
+		"topTierClasses": [
+			"FA",
+			"GA"
+		],
+		"baselineClass": "B",
+		"enabled": true,
+		"autofillClasses": [
+			"Stub",
+			"Start",
+			"C",
+			"List"
+		]
+	},
+	"bannerDefaults": {
+		"classes": [
+			"FA",
+			"FL",
+			"A",
+			"GA",
+			"B",
+			"C",
+			"Start",
+			"Stub",
+			"List"
+		],
+		"importances": [
+			"Top",
+			"High",
+			"Mid",
+			"Low"
+		],
+		"extendedClasses": [
+			"Category",
+			"Draft",
+			"File",
+			"FM",
+			"Portal",
+			"Project",
+			"Template",
+			"Bplus",
+			"Future",
+			"Current",
+			"Disambig",
+			"NA",
+			"Redirect",
+			"Book"
+		],
+		"extendedImportances": [
+			"Top",
+			"High",
+			"Mid",
+			"Low",
+			"Bottom",
+			"NA"
+		],
+		"classParamName": "class",
+		"importanceParamName": "importance",
+		"lowImportance": "Low",
+		"stubClasses": [
+			"Stub"
+		],
+		"listClass": "List",
+		"classAliases": {
+			"image": "File",
+			"img": "File",
+			"file": "File",
+			"category": "Category",
+			"cat": "Category",
+			"categ": "Category",
+			"disambiguation": "Disambig",
+			"disambig": "Disambig",
+			"disamb": "Disambig",
+			"dab": "Disambig",
+			"redirect": "Redirect",
+			"redir": "Redirect",
+			"red": "Redirect",
+			"template": "Template",
+			"temp": "Template",
+			"tpl": "Template",
+			"b+": "Bplus",
+			"bplus": "Bplus",
+			"fpo": "FPo"
+		},
+		"importanceAliases": {}
+	},
+	"customBanners": {
+		"WikiProject Military history": {
+			"classes": [
+				"FA",
+				"FL",
+				"A",
+				"GA",
+				"B",
+				"C",
+				"Start",
+				"Stub",
+				"List",
+				"AL",
+				"BL",
+				"CL",
+				"Category",
+				"Draft",
+				"File",
+				"Portal",
+				"Project",
+				"Template",
+				"Disambig",
+				"Redirect",
+				"Book"
+			],
+			"importances": []
+		},
+		"WikiProject Portals": {
+			"classes": [
+				"FPo",
+				"Complete",
+				"Substantial",
+				"Basic",
+				"Incomplete",
+				"Meta",
+				"List",
+				"Category",
+				"Draft",
+				"File",
+				"Project",
+				"Template",
+				"Disambig",
+				"NA",
+				"Redirect"
+			],
+			"importances": [
+				"Top",
+				"High",
+				"Mid",
+				"Low",
+				"Bottom",
+				"NA"
+			]
+		},
+		"WikiProject Video games": {
+			"classes": [
+				"FA",
+				"FL",
+				"FM",
+				"GA",
+				"B",
+				"C",
+				"Start",
+				"Stub",
+				"List",
+				"Category",
+				"Draft",
+				"File",
+				"Portal",
+				"Project",
+				"Template",
+				"Disambig",
+				"Redirect"
+			],
+			"importances": [
+				"Top",
+				"High",
+				"Mid",
+				"Low",
+				"NA"
+			]
+		}
+	},
+	"categories": {
+		"withRatings": "Category:WikiProject banners with quality assessment",
+		"withoutRatings": "Category:WikiProject banners without quality assessment",
+		"wrappers": "Category:WikiProject banner wrapper templates",
+		"notWPBM": "Category:WikiProject banner templates not based on WPBannerMeta",
+		"inactive": "Category:Inactive WikiProject banners",
+		"wir": "Category:Wrapper templates for WikiProject Women in Red"
+	},
+	"subjectPageCategories": {
+		"disambig": "Category:All disambiguation pages",
+		"stub": "Category:All stub articles",
+		"goodArticle": "Category:Good articles",
+		"featuredArticle": "Category:Featured articles",
+		"featuredList": "Category:Featured lists"
+	},
+	"bannerNamePrefixes": [
+		"WP ",
+		"WikiProject "
+	],
+	"shellTemplate": "WikiProject banner shell",
+	"shell": {
+		"autoCreate": true,
+		"minProjects": null,
+		"classLocation": "shell",
+		"classParamName": "class",
+		"aliases": [],
+		"parameters": [
+			{
+				"name": "1"
+			},
+			{
+				"name": "class"
+			},
+			{
+				"name": "blp",
+				"aliases": [
+					"living"
+				],
+				"suggestedvalues": [
+					"yes",
+					"no"
+				],
+				"labelKey": "parameter-shell-blp"
+			},
+			{
+				"name": "collapsed",
+				"suggestedvalues": [
+					"yes",
+					"no"
+				],
+				"labelKey": "parameter-shell-collapsed"
+			},
+			{
+				"name": "listas",
+				"labelKey": "parameter-shell-listas"
+			},
+			{
+				"name": "vital",
+				"labelKey": "parameter-shell-vital"
+			}
+		],
+		"biographyBannerNames": [
+			"WikiProject Biography"
+		],
+		"biographyParameters": [
+			{
+				"source": "living",
+				"target": "blp",
+				"normalise": true
+			},
+			{
+				"source": "listas",
+				"target": "listas",
+				"normalise": false
+			}
+		]
+	},
+	"classFormat": "native",
+	"classDisplayFormat": "native",
+	"editSummaryLanguage": "en",
+	"defaultParameterData": {
+		"auto": {
+			"autovalue": "yes",
+			"labelKey": "parameter-auto-label",
+			"descriptionKey": "parameter-auto-description",
+			"allowedValues": [
+				"yes"
+			]
+		},
+		"listas": {
+			"labelKey": "parameter-listas-label",
+			"descriptionKey": "parameter-listas-description"
+		},
+		"small": {
+			"autovalue": "yes",
+			"labelKey": "parameter-small-label",
+			"descriptionKey": "parameter-small-description",
+			"allowedValues": [
+				"yes"
+			]
+		},
+		"attention": {
+			"autovalue": "yes",
+			"labelKey": "parameter-attention-label",
+			"descriptionKey": "parameter-attention-description",
+			"allowedValues": [
+				"yes"
+			]
+		},
+		"needs-image": {
+			"aliases": [
+				"needs-photo"
+			],
+			"autovalue": "yes",
+			"suggested": true,
+			"labelKey": "parameter-needs-image-label",
+			"descriptionKey": "parameter-needs-image-description",
+			"allowedValues": [
+				"yes"
+			]
+		},
+		"needs-infobox": {
+			"aliases": [],
+			"autovalue": "yes",
+			"suggested": true,
+			"labelKey": "parameter-needs-infobox-label",
+			"descriptionKey": "parameter-needs-infobox-description",
+			"allowedValues": [
+				"yes"
+			]
+		}
+	},
+	"wiki": {
+		"servers": [
+			"https://en.wikipedia.org"
+		]
+	},
+	"assessmentParameters": {
+		"class": [
+			"class"
+		],
+		"importance": [
+			"importance"
+		]
+	},
+	"ratingDetection": {
+		"parseTitle": "Talk:Wikipedia",
+		"classCategoryPattern": "{value}-Class",
+		"importanceCategoryPattern": "{value}-importance"
+	},
+	"booleanAliases": {
+		"0": "no",
+		"1": "yes",
+		"add": "yes",
+		"added": "yes",
+		"affirm": "yes",
+		"affirmed": "yes",
+		"include": "yes",
+		"included": "yes",
+		"on": "yes",
+		"true": "yes",
+		"yes": "yes",
+		"y": "yes",
+		"decline": "no",
+		"declined": "no",
+		"exclude": "no",
+		"excluded": "no",
+		"false": "no",
+		"none": "no",
+		"not": "no",
+		"no": "no",
+		"n": "no",
+		"off": "no",
+		"omit": "no",
+		"omitted": "no",
+		"remove": "no",
+		"removed": "no"
+	},
+	"substitution": {
+		"prefix": "Subst:",
+		"aliases": [
+			"subst",
+			"safesubst"
+		]
+	},
+	"sortKey": {
+		"parameter": "listas",
+		"suffixPatterns": [
+			" [JS]r\\.?$",
+			" [IVX]+$"
+		]
+	},
+	"subjectPageTitlePatterns": {
+		"list": [
+			"^Lists? of"
+		]
+	},
+	"subjectPageCategoryPatterns": {},
+	"talkPageWarnings": [
+		"WikiProject Disambiguation"
+	],
+	"bannerExclusions": [],
+	"autostartTemplatePatterns": [
+		"WPBanner"
+	]
+}

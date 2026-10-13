@@ -2,7 +2,7 @@
 
 // Initialize API with default user agent from build-time constants
 const DEFAULT_VERSION = ( typeof RATER_VERSION !== 'undefined' && RATER_VERSION ) || 'dev';
-const DEFAULT_DOC_PAGE = ( typeof RATER_DOC_PAGE !== 'undefined' && RATER_DOC_PAGE ) || 'https://en.wikipedia.org/wiki/User:Evad37/Rater';
+const DEFAULT_DOC_PAGE = ( typeof RATER_DOC_PAGE !== 'undefined' && RATER_DOC_PAGE ) || '';
 const API = new mw.Api( {
 	ajax: {
 		headers: {
@@ -18,7 +18,6 @@ API.updateUserAgent = function ( version ) {
 
 /* ---------- API for ORES ---------------------------------------------------------------------- */
 API.getORES = function ( revisionID, wiki ) {
-	wiki = wiki || 'enwiki';
 	return fetch( 'https://ores.wikimedia.org/v3/scores/' + wiki + '?models=articlequality&revids=' + revisionID )
 		.then( ( response ) => response.json() );
 };

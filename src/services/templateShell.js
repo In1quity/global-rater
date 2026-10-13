@@ -1,5 +1,5 @@
 import config from '@constants/config.js';
-import { stripAnyTemplateNs } from '@utils/wikitext.js';
+import { stripAnyTemplateNs, stripSubstitutionPrefix } from '@utils/wikitext.js';
 import { getTemplateAliases } from '@utils/aliases.js';
 // <nowiki>
 
@@ -24,7 +24,7 @@ const getShellTemplateAliases = function () {
 	return result;
 };
 
-const normalizeNs = ( name ) => stripAnyTemplateNs( name ).replace( /^(?:subst|подст):/i, '' ).replace( /_/g, ' ' ).trim().toLowerCase();
+const normalizeNs = ( name ) => stripSubstitutionPrefix( stripAnyTemplateNs( name ) ).replace( /_/g, ' ' ).trim().toLowerCase();
 
 const isShellTemplateName = ( name ) => getShellTemplateAliasesSync().some( ( alias ) => normalizeNs( alias ) === normalizeNs( name ) );
 
